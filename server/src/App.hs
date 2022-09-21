@@ -1,27 +1,26 @@
-{-# LANGUAGE NoImplicitPrelude #-}
-
 module App (
     server,
 ) where
 
-import qualified Action.Hello
-import qualified Data.Text.Lazy as LazyText
+import Action.Auth qualified
+import Action.Hello qualified
+import Data.Text.Lazy qualified as LazyText
 import Env (Env (..))
-import qualified Env
+import Env qualified
 import Handler (Handler)
-import qualified Handler
+import Handler qualified
 import Network.Wai (Application, Middleware)
 import Network.Wai.Handler.Warp (run)
 import Network.Wai.Middleware.Static (Policy)
-import qualified Network.Wai.Middleware.Static as Static
+import Network.Wai.Middleware.Static qualified as Static
 import Relude
 import Web.Scotty.Trans (ScottyT)
-import qualified Web.Scotty.Trans as ScottyT
+import Web.Scotty.Trans qualified as ScottyT
 
 staticMiddleware :: Middleware
 staticMiddleware =
     Static.staticPolicy $
-        serveApp <> Static.addBase "public" <> Static.noDots
+        serveApp <> Static.addBase "public" <> Static.noDots <> Static.addBase "../web"
 
 serveApp :: Policy
 serveApp = Static.policy defaultIndex
@@ -33,11 +32,16 @@ serveApp = Static.policy defaultIndex
 server :: IO ()
 server = do
     env <- runExceptT Env.getEnv
-    either putStrLn (application >=> run 8080) env
+    either putStrLn (\e -> application e >>= run (Env.port e)) env
 
 handler :: ScottyT LazyText.Text Handler ()
 handler = do
-    ScottyT.get (fromString "/api/hello") Action.Hello.sayHello
+    ScottyT.get "/api/hello" Action.Hello.sayHello
+    ScottyT.post "/api/login" Action.Auth.authorize
+    ScottyT.get "/api/check-auth" Action.Auth.checkAuth
 
 application :: Env -> IO Application
-application env = staticMiddleware <$> ScottyT.scottyAppT (Handler.runHandler env) handler
+application env =
+    do
+        putStrLn $ "Running server on port " <> show (port env)
+        staticMiddleware <$> ScottyT.scottyAppT (Handler.runHandler env) handler

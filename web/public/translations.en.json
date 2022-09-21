@@ -1,0 +1,8 @@
+{
+    "dashboard": {
+        "greeting": "Hello, {{name}}"
+    },
+    "login": {
+        "buttonPrompt": "Click here to login"
+    }
+}

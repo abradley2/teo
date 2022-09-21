@@ -52,6 +52,13 @@ ghc-options:
 
 library:
   source-dirs: src
+  default-extensions:
+    - LambdaCase
+    - NoImplicitPrelude
+    - TupleSections
+    - OverloadedStrings
+    - OverloadedRecordDot
+    - ImportQualifiedPost
 
 executables:
   teo-exe:

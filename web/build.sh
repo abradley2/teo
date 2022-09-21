@@ -1,0 +1,1 @@
+npm run build:translations && elm make src/Main.elm --debug --output public/main.bundle.js

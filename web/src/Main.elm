@@ -1,14 +1,51 @@
 port module Main exposing (..)
 
+import AppAction exposing (AppAction)
 import Browser
 import Html as H exposing (Html)
+import Http
+import HttpData exposing (HttpData)
+import I18Next exposing (Translations)
 import Json.Decode as Decode exposing (Decoder, Error, Value)
+import List.Nonempty as Nonempty exposing (Nonempty(..))
 import Page.Dashboard as Dashboard
 import Page.Login as Login
 import Result.Extra as Result
 import Routes exposing (Route)
-import State exposing (State(..))
-import Url exposing (Url)
+import Shared exposing (LanguageId, Shared)
+import Tuple3
+import User exposing (User)
+
+
+type Effect
+    = EffectNone
+    | EffectDashboard Dashboard.Effect
+    | EffectCheckAuth
+    | EffectBatch (List Effect)
+
+
+perform : Effect -> Cmd Msg
+perform effect =
+    case effect of
+        EffectNone ->
+            Cmd.none
+
+        EffectCheckAuth ->
+            Http.request
+                { method = "GET"
+                , url = "/api/check-auth"
+                , body = Http.emptyBody
+                , tracker = Nothing
+                , expect = Http.expectJson CheckedUserAuthorization (Decode.field "authorized" Decode.bool)
+                , headers = []
+                , timeout = Nothing
+                }
+
+        EffectDashboard subEffect ->
+            Dashboard.perform subEffect |> Cmd.map GotDashboardMsg
+
+        EffectBatch effects ->
+            Cmd.batch (List.map perform effects)
 
 
 type Page
@@ -17,23 +54,9 @@ type Page
     | NotFound
 
 
-initPage : Route -> ( Page, Cmd Msg )
-initPage route =
-    case route of
-        Routes.Login ->
-            ( Login, Cmd.none )
-
-        Routes.Dashboard ->
-            Dashboard.init
-                |> Tuple.mapFirst Dashboard
-                |> Tuple.mapSecond (Cmd.map GotDashboardMsg)
-
-        Routes.NotFound ->
-            ( NotFound, Cmd.none )
-
-
 type alias Flags =
     { url : String
+    , languages : Nonempty ( LanguageId, Translations )
     }
 
 
@@ -42,77 +65,154 @@ port linkClicked : (String -> msg) -> Sub msg
 
 flagsDecoder : Decoder Flags
 flagsDecoder =
-    Decode.map
+    Decode.map2
         Flags
         (Decode.field "url" Decode.string)
+        (Decode.field "languages"
+            (Decode.list
+                (Decode.map2
+                    Tuple.pair
+                    (Decode.field "0" Shared.translationIdDecoder)
+                    (Decode.field "1" I18Next.translationsDecoder)
+                )
+            )
+            |> Decode.andThen
+                (Nonempty.fromList
+                    >> Maybe.map Decode.succeed
+                    >> Maybe.withDefault (Decode.fail "No translations")
+                )
+        )
 
 
 type Msg
-    = UrlChanged String
+    = RouteChanged Route
+    | CheckedUserAuthorization (Result Http.Error Bool)
     | GotDashboardMsg Dashboard.Msg
 
 
 type alias Model =
     { page : Page
+    , user : HttpData User
+    , shared : Shared
     }
 
 
-init : Value -> ( Result Error Model, Cmd Msg )
+init : Value -> ( Result Error Model, Effect )
 init flagsJson =
     let
         initResult =
             Decode.decodeValue flagsDecoder flagsJson
                 |> Result.map
                     (\flags ->
-                        let
-                            ( page, cmd ) =
-                                Routes.parseUrl flags.url
-                                    |> initPage
-                        in
-                        ( { page = page
+                        ( { page = NotFound
+                          , shared = Shared.init flags.languages
+                          , user = HttpData.Loading Nothing
                           }
-                        , cmd
+                        , EffectCheckAuth
                         )
+                            |> withRoute (Routes.parseUrl flags.url)
                     )
     in
     case initResult of
-        Ok ( model, cmd ) ->
-            ( Ok model, cmd )
+        Ok ( model, effect ) ->
+            ( Ok model, effect )
 
         Err err ->
-            ( Err err, Cmd.none )
+            ( Err err, EffectNone )
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
+withRoute : Route -> ( Model, Effect ) -> ( Model, Effect )
+withRoute route ( model, effect ) =
+    let
+        appendEffect newEffect =
+            EffectBatch [ effect, newEffect ]
+    in
+    case route of
+        Routes.NotFound ->
+            ( { model | page = NotFound }, effect )
+
+        Routes.Login ->
+            ( { model | page = Login }, effect )
+
+        Routes.Dashboard ->
+            let
+                ( page, appAction, pageEffect ) =
+                    Dashboard.init
+                        |> Tuple3.mapFirst Dashboard
+                        |> Tuple3.mapThird EffectDashboard
+            in
+            ( { model | page = page }, appendEffect pageEffect )
+                |> withAppAction appAction
+
+
+withAppAction : Maybe AppAction -> ( Model, Effect ) -> ( Model, Effect )
+withAppAction action ( model, effect ) =
+    let
+        appendEffect newEffect =
+            EffectBatch [ effect, newEffect ]
+    in
+    case action of
+        Just _ ->
+            ( model, effect )
+
+        Nothing ->
+            ( model, effect )
+
+
+update : Msg -> Model -> ( Model, Effect )
 update msg model =
     case ( msg, model.page ) of
         ( GotDashboardMsg dashboardMsg, Dashboard page ) ->
             let
-                ( nextPage, cmd ) =
+                ( nextPage, appAction, effect ) =
                     Dashboard.update dashboardMsg page
-                        |> Tuple.mapBoth Dashboard (Cmd.map GotDashboardMsg)
+                        |> Tuple3.mapFirst Dashboard
+                        |> Tuple3.mapThird EffectDashboard
             in
-            ( { model | page = nextPage }
-            , cmd
-            )
+            withAppAction appAction ( { model | page = nextPage }, effect )
+
+        ( CheckedUserAuthorization (Ok True), _ ) ->
+            ( model, EffectNone )
+
+        ( CheckedUserAuthorization (Ok False), _ ) ->
+            ( model, EffectNone )
+
+        ( CheckedUserAuthorization (Err _), _ ) ->
+            ( model, EffectNone )
 
         ( GotDashboardMsg _, _ ) ->
-            ( model, Cmd.none )
+            ( model, EffectNone )
 
-        ( UrlChanged urlString, Dashboard page ) ->
-            ( model, Dashboard.unload page |> Cmd.map GotDashboardMsg )
+        ( RouteChanged route, Dashboard page ) ->
+            withAppAction (Dashboard.unload page) ( model, EffectNone )
+                |> withRoute route
+
+        ( RouteChanged route, Login ) ->
+            ( model, EffectNone )
+                |> withRoute route
+
+        ( RouteChanged route, NotFound ) ->
+            ( model, EffectNone )
+                |> withRoute route
 
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    linkClicked UrlChanged
+    linkClicked (Routes.parseUrl >> RouteChanged)
 
 
 view : Model -> Html Msg
 view model =
-    H.div
-        []
-        [ H.text "Hello world!" ]
+    case model.page of
+        Login ->
+            Login.view
+
+        Dashboard page ->
+            Dashboard.view model.shared page
+                |> H.map GotDashboardMsg
+
+        NotFound ->
+            H.text "Page not found"
 
 
 errorView : Error -> Html Msg
@@ -125,12 +225,14 @@ errorView error =
 main : Program Value (Result Error Model) Msg
 main =
     Browser.element
-        { init = init
+        { init = init >> Tuple.mapSecond perform
         , update =
             \msg initModel ->
                 case initModel of
                     Ok model ->
-                        update msg model |> Tuple.mapFirst Ok
+                        update msg model
+                            |> Tuple.mapFirst Ok
+                            |> Tuple.mapSecond perform
 
                     Err err ->
                         ( Err err, Cmd.none )

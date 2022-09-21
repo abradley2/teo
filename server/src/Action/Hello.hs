@@ -1,16 +1,14 @@
-{-# LANGUAGE NoImplicitPrelude #-}
-
 module Action.Hello (sayHello) where
 
-import qualified Control.Monad.Logger as Logger
-import qualified Data.Aeson as Aeson
-import qualified Data.Text as Text
-import qualified Data.Text.Lazy as LazyText
+import Control.Monad.Logger qualified as Logger
+import Data.Aeson qualified as Aeson
+import Data.Text qualified as Text
+import Data.Text.Lazy qualified as LazyText
 import Handler (Handler)
-import qualified Handler
+import Handler qualified
 import Relude
 import Web.Scotty.Trans (ActionT)
-import qualified Web.Scotty.Trans as ScottyT
+import Web.Scotty.Trans qualified as ScottyT
 
 sayHello :: ActionT LazyText.Text Handler ()
 sayHello = do

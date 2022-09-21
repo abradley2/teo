@@ -3,11 +3,21 @@
 # For more information, please see the documentation at:
 #   https://docs.haskellstack.org/en/stable/lock_files
 
-packages: []
+packages:
+- completed:
+    name: envy
+    version: 2.1.1.0
+    git: https://github.com/dmjio/envy.git
+    pantry-tree:
+      size: 613
+      sha256: dc7880c4681c765309c1a9f783a8893770f075a62f66bae52fff501fd530ac32
+    commit: fdb26b132ee709819c2899f3ced906071e46a5a1
+  original:
+    git: https://github.com/dmjio/envy.git
+    commit: fdb26b132ee709819c2899f3ced906071e46a5a1
 snapshots:
 - completed:
-    size: 619399
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/19/22.yaml
-    sha256: 5098594e71bdefe0c13e9e6236f12e3414ef91a2b89b029fd30e8fc8087f3a07
-  original:
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/19/22.yaml
+    size: 637177
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/nightly/2022/9/20.yaml
+    sha256: 97020548665565dbdfaf07ac7bb92795b83f4082866ce454a9fcad0aa3241654
+  original: nightly-2022-09-20

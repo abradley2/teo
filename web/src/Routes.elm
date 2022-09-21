@@ -13,8 +13,8 @@ type Route
 routeParser : Parser (Route -> msg) msg
 routeParser =
     Parser.oneOf
-        [ Parser.map Dashboard (Parser.s "home")
-        , Parser.map Login (Parser.s "login")
+        [ Parser.map Dashboard Parser.top
+        , Parser.map Login (Parser.s "app" </> Parser.s "login")
         ]
 
 

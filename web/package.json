@@ -1,0 +1,16 @@
+{
+    "name": "web",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "build:translations": "elm-i18next-gen --fallback --overwrite --source public/translations.en.json --target src"
+    },
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+        "elm-i18next-gen": "^1.1.0",
+        "elm-test": "^0.19.1-revision9"
+    }
+}

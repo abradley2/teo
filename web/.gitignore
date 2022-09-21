@@ -1,2 +1,4 @@
 elm-stuff/
 .vscode/
+node_modules/
+*.bundle.*

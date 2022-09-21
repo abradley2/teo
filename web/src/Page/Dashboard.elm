@@ -1,33 +1,49 @@
 module Page.Dashboard exposing (..)
 
+import AppAction exposing (AppAction)
 import Html as H exposing (Html)
+import Shared exposing (Shared)
+import Translations.Dashboard
 
 
 type Msg
     = NoOp
 
 
+type Effect
+    = EffectNone
+
+
+perform : Effect -> Cmd Msg
+perform effect =
+    case effect of
+        EffectNone ->
+            Cmd.none
+
+
 type alias Model =
     {}
 
 
-init : ( Model, Cmd Msg )
+init : ( Model, Maybe AppAction, Effect )
 init =
-    ( {}, Cmd.none )
+    ( {}, Nothing, EffectNone )
 
 
-unload : Model -> Cmd Msg
+unload : Model -> Maybe AppAction
 unload model =
-    Cmd.none
+    Nothing
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
+update : Msg -> Model -> ( Model, Maybe AppAction, Effect )
 update msg model =
-    ( model, Cmd.none )
+    ( model, Nothing, EffectNone )
 
 
-view : Model -> Html Msg
-view model =
+view : Shared -> Model -> Html Msg
+view shared model =
     H.div
         []
-        [ H.text "Login Page" ]
+        [ H.text <|
+            Translations.Dashboard.greeting shared.language "Tony"
+        ]

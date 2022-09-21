@@ -1,14 +1,12 @@
-{-# LANGUAGE NoImplicitPrelude #-}
-
 module Handler (AppError (..), Handler, withError, runHandler, handleError, throwError) where
 
 import Control.Monad.Logger (LoggingT)
-import qualified Control.Monad.Logger as Logger
-import qualified Data.ByteString.Lazy as LBS
+import Control.Monad.Logger qualified as Logger
+import Data.ByteString.Lazy qualified as LBS
 import Env (Env)
 import Network.HTTP.Types (Status)
 import Network.Wai (Response)
-import qualified Network.Wai as Wai
+import Network.Wai qualified as Wai
 import Relude
 
 data AppError = AppError {log :: Maybe Text, status :: Status, response :: LBS.ByteString}

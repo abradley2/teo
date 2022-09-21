@@ -1,21 +1,20 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE NoImplicitPrelude #-}
+module Action.Cookie (readCookies, readCookie, setCookie) where
 
-module Action.Cookie (readCookies, readCookie) where
-
-import qualified Data.ByteString.Lazy as LazyByteString
-import qualified Data.Text.Lazy as LazyText
-import qualified Data.Text.Lazy.Encoding
+import Data.ByteString.Builder qualified
+import Data.ByteString.Lazy qualified as LazyByteString
+import Data.Text.Encoding qualified as Text
+import Data.Text.Lazy qualified as LazyText
+import Data.Text.Lazy.Encoding qualified as LazyText
 import Handler (Handler)
 import Relude
-import qualified Web.Cookie as Cookie
+import Web.Cookie qualified as Cookie
 import Web.Scotty.Trans (ActionT)
-import qualified Web.Scotty.Trans as ScottyT
+import Web.Scotty.Trans qualified as ScottyT
 
 readCookies :: ActionT LazyText.Text Handler [(Text, Text)]
 readCookies =
     ScottyT.header "Cookie"
-        <&> fmap Data.Text.Lazy.Encoding.encodeUtf8
+        <&> fmap LazyText.encodeUtf8
         <&> fmap LazyByteString.toStrict
         <&> fmap Cookie.parseCookiesText
         <&> fromMaybe []
@@ -27,3 +26,15 @@ readCookie cookieName =
     getCookieByName ((name, value) : cookies) =
         if name == cookieName then Just value else getCookieByName cookies
     getCookieByName [] = Nothing
+
+setCookie :: Text -> Text -> ActionT LazyText.Text Handler ()
+setCookie name value =
+    ScottyT.setHeader "Set-Cookie" $
+        LazyText.decodeUtf8 $
+            Data.ByteString.Builder.toLazyByteString $
+                Cookie.renderSetCookie $
+                    Cookie.defaultSetCookie
+                        { Cookie.setCookieName = Text.encodeUtf8 name
+                        , Cookie.setCookieValue = Text.encodeUtf8 value
+                        , Cookie.setCookieHttpOnly = True
+                        }

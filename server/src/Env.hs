@@ -1,14 +1,12 @@
-{-# LANGUAGE NoImplicitPrelude #-}
-
 module Env where
 
-import qualified Configuration.Dotenv as Dotenv
+import Configuration.Dotenv qualified as Dotenv
 import Control.Monad.Trans.Except
-import qualified Data.Text as Text
-import qualified Database.MongoDB as MongoDB
-import qualified Database.Redis as Redis
+import Data.Text qualified as Text
+import Database.MongoDB qualified as MongoDB
+import Database.Redis qualified as Redis
 import Relude
-import qualified System.Envy as Envy
+import System.Envy qualified as Envy
 
 data Env = Env
     { port :: Int
