@@ -23,47 +23,49 @@ authCookieName :: Text
 authCookieName = "auth"
 
 withAuth :: (AuthToken -> ActionT LazyText.Text Handler a) -> ActionT LazyText.Text Handler a
-withAuth handler = do
-    redisConn <- asks Env.redisConn
-    lift $ Logger.logDebugN "Invoking handler with auth"
-    clientToken <-
-        Action.Cookie.readCookie authCookieName
-            >>= Handler.withError
-                . maybeToRight
-                    ( AppError
-                        { log = Nothing
-                        , response = "User is not authorized"
-                        , status = status400
-                        }
-                    )
-    lift $ Logger.logDebugN "Retrieved auth cookie"
-    authTokenResult <-
-        liftIO
-            . Redis.runRedis redisConn
-            . Redis.get
-            $ Text.encodeUtf8 clientToken
-    authToken <-
-        Handler.withError $
-            first
-                ( \err ->
-                    AppError
-                        { log = Just $ "Failed to retrieve auth token from Redis: " <> show err
-                        , response = "Internal server error"
-                        , status = status500
-                        }
+withAuth handler =
+    let logger = Handler.withLogger "withAuth"
+     in do
+            redisConn <- asks Env.redisConn
+            logger Logger.LevelDebug "Invoking handler with auth"
+            clientToken <-
+                Action.Cookie.readCookie authCookieName
+                    >>= Handler.withError
+                        . maybeToRight
+                            ( AppError
+                                { log = Nothing
+                                , response = "User is not authorized"
+                                , status = status400
+                                }
+                            )
+            logger Logger.LevelDebug "Retrieved auth cookie"
+            authTokenResult <-
+                liftIO
+                    . Redis.runRedis redisConn
+                    . Redis.get
+                    $ Text.encodeUtf8 clientToken
+            authToken <-
+                Handler.withError $
+                    first
+                        ( \err ->
+                            AppError
+                                { log = Just $ "Failed to retrieve auth token from Redis: " <> show err
+                                , response = "Internal server error"
+                                , status = status500
+                                }
+                        )
+                        authTokenResult
+            maybe
+                ( Handler.withError $
+                    Left $
+                        AppError
+                            { log = Nothing
+                            , response = "User token not found"
+                            , status = status400
+                            }
                 )
-                authTokenResult
-    maybe
-        ( Handler.withError $
-            Left $
-                AppError
-                    { log = Nothing
-                    , response = "User token not found"
-                    , status = status400
-                    }
-        )
-        (handler . AuthToken . Text.decodeUtf8)
-        authToken
+                (handler . AuthToken . Text.decodeUtf8)
+                authToken
 
 authorize :: ActionT LazyText.Text Handler ()
 authorize = do

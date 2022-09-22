@@ -11,7 +11,9 @@ import Web.Scotty.Trans (ActionT)
 import Web.Scotty.Trans qualified as ScottyT
 
 sayHello :: ActionT LazyText.Text Handler ()
-sayHello = do
-    lift $ Logger.logDebugN $ Text.pack "Say hello called"
-    a <- Handler.withError $ Right ""
-    ScottyT.html $ LazyText.pack "<h1>hello there</h1>"
+sayHello =
+    let logger = Handler.withLogger "sayHello"
+     in do
+            logger Logger.LevelDebug ""
+            a <- Handler.withError $ Right ""
+            ScottyT.html $ LazyText.pack "<h1>hello there</h1>"
