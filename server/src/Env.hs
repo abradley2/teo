@@ -12,6 +12,7 @@ data Env = Env
     { port :: Int
     , mongoPipe :: MongoDB.Pipe
     , redisConn :: Redis.Connection
+    , requestId :: Maybe Text
     }
 
 getEnv :: ExceptT String IO Env
@@ -30,3 +31,4 @@ getEnv = do
         <$> Envy.runParser (Envy.env "PORT")
         <*> liftIO (MongoDB.connect (MongoDB.Host "localhost" mongoPort))
         <*> liftIO (Redis.connect Redis.defaultConnectInfo{Redis.connectPort = redisPort})
+        <*> pure Nothing
