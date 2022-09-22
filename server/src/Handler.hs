@@ -1,6 +1,6 @@
-module Handler (AppError (..), Handler, withError, runHandler, handleError, throwError, Logger) where
+module Handler (AppError (..), Handler, withError, runHandler, handleError, throwError, AppLogger) where
 
-import Control.Monad.Logger (LoggingT (..))
+import Control.Monad.Logger (LoggingT (LoggingT))
 import Control.Monad.Logger qualified as Logger
 import Data.ByteString.Lazy qualified as LBS
 import Data.Text.Encoding qualified as Text
@@ -18,12 +18,13 @@ data AppError = AppError {log :: Maybe Text, status :: Status, response :: LBS.B
 
 type Handler = ReaderT Env (ExceptT AppError (LoggingT IO))
 
-type NewHandler = ExceptT AppError AppLogger
+type AppHandler = ExceptT AppError (AppLogger IO)
 
-newtype AppLogger a = Logger {runLogger :: LoggingT (ReaderT Env IO) a}
+newtype AppLogger m a = AppLogger {runLogger :: LoggingT (ReaderT Env m) a}
 
-logDebug :: Logger.LogLevel -> LoggingT (ReaderT Env IO) ()
-logDebug level = LoggingT $ \f -> ReaderT $ \env -> Logger.runStderrLoggingT $ f Logger.defaultLoc "" level
+-- appLog :: Text -> Logger.LogLevel -> Logger.LogStr -> LoggingT (ReaderT Env IO) ()
+appLog :: Text -> Logger.LogLevel -> Logger.LogStr -> AppLogger IO ()
+appLog source level logStr = AppLogger $ LoggingT $ \f -> ReaderT $ \env -> f Logger.defaultLoc source level logStr
 
 throwError :: MonadTrans m => AppError -> m Handler a
 throwError = withError . Left
