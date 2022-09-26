@@ -1,7 +1,7 @@
 module Page.Dashboard exposing (..)
 
 import AppAction exposing (AppAction)
-import Html as H exposing (Html)
+import Html.Styled as H exposing (Html)
 import Shared exposing (Shared)
 import Translations.Dashboard
 

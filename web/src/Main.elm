@@ -2,7 +2,7 @@ port module Main exposing (..)
 
 import AppAction exposing (AppAction)
 import Browser
-import Html as H exposing (Html)
+import Html.Styled as H exposing (Html)
 import Http
 import HttpData exposing (HttpData)
 import I18Next exposing (Translations)
@@ -236,7 +236,7 @@ main =
 
                     Err err ->
                         ( Err err, Cmd.none )
-        , view = Result.map view >> Result.mapError errorView >> Result.merge
+        , view = Result.map view >> Result.mapError errorView >> Result.merge >> H.toUnstyled
         , subscriptions =
             \initModel ->
                 case initModel of
