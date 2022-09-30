@@ -10,6 +10,12 @@
 </head>
 
 <body>
+    <style>
+        body {
+            padding: 0px;
+            margin: 0px;
+        }
+    </style>
     <div id="app"></div>
     <script src="/main.bundle.js"></script>
     <script>
@@ -18,12 +24,36 @@
                 .then(response => response.json())
                 .then((en) => ["en", en])
         ]).then((languages) => {
-            window.Elm.Main.init({
+            const app = window.Elm.Main.init({
                 node: document.getElementById('app'),
                 flags: {
                     url: window.location.href,
-                    languages
+                    languages,
+                    clientId: crypto.randomUUID()
                 }
+            })
+
+            app.ports.requestData.subscribe(function (k) {
+                const v = window.localStorage.getItem(k)
+                app.ports.receiveData.send([k, v])
+            })
+
+            app.ports.storeData.subscribe(function (k, v) {
+                window.localStorage.setItem(k, v)
+            })
+
+            app.ports.replaceUrl.subscribe(function (url) {
+                window.history.replaceState(null, document.title, url)
+                requestAnimationFrame(function () {
+                    app.ports.linkClicked.send(window.location.href)
+                })
+            })
+
+            app.ports.pushUrl.subscribe(function (url) {
+                window.history.pushUrl(null, document.title, url)
+                requestAnimationFrame(function () {
+                    app.ports.linkClicked.send(window.location.href)
+                })
             })
         })
 
@@ -37,7 +67,7 @@
                     } else {
                         window.history.pushState(null, document.title, node.getAttribute('href'))
                     }
-                    window.Elm.Main.ports.linkClicked.send(window.location.href)
+                    app.ports.linkClicked.send(window.location.href)
                     return
                 }
 

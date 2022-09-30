@@ -1,8 +1,10 @@
 module Shared exposing (..)
 
+import Http
 import I18Next exposing (Translations)
 import Json.Decode as Decode exposing (Decoder)
 import List.Nonempty as Nonempty exposing (Nonempty)
+import Theme exposing (Theme)
 
 
 type LanguageId
@@ -26,13 +28,26 @@ translationIdDecoder =
 type alias Shared =
     { language : List Translations
     , altLanguages : Nonempty ( LanguageId, Translations )
+    , clientId : ClientId
+    , theme : Theme
     }
 
 
-init : Nonempty ( LanguageId, Translations ) -> Shared
-init altLanguages =
+type ClientId
+    = ClientId String
+
+
+clientIdToHeader : ClientId -> Http.Header
+clientIdToHeader (ClientId clientId) =
+    Http.header "X-Client-Id" clientId
+
+
+init : ClientId -> Nonempty ( LanguageId, Translations ) -> Shared
+init clientId altLanguages =
     { language = []
     , altLanguages = altLanguages
+    , clientId = clientId
+    , theme = Theme.darkTheme
     }
         |> withLanguage EN
 

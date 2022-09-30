@@ -1,8 +1,10 @@
-port module Main exposing (..)
+module Main exposing (..)
 
-import AppAction exposing (AppAction)
+import AppAction exposing (AppAction, Notification)
 import Browser
+import Css
 import Html.Styled as H exposing (Html)
+import Html.Styled.Attributes as A
 import Http
 import HttpData exposing (HttpData)
 import I18Next exposing (Translations)
@@ -10,9 +12,10 @@ import Json.Decode as Decode exposing (Decoder, Error, Value)
 import List.Nonempty as Nonempty exposing (Nonempty(..))
 import Page.Dashboard as Dashboard
 import Page.Login as Login
+import Ports
 import Result.Extra as Result
 import Routes exposing (Route)
-import Shared exposing (LanguageId, Shared)
+import Shared exposing (ClientId(..), LanguageId, Shared)
 import Tuple3
 import User exposing (User)
 
@@ -20,7 +23,13 @@ import User exposing (User)
 type Effect
     = EffectNone
     | EffectDashboard Dashboard.Effect
-    | EffectCheckAuth
+    | EffectLogin Login.Effect
+    | EffectCheckAuth ClientId
+    | EffectStoreData String Value
+    | EffectRequestData String
+    | EffectCancelRequest String
+    | EffectPushUrl String
+    | EffectReplaceUrl String
     | EffectBatch (List Effect)
 
 
@@ -30,26 +39,46 @@ perform effect =
         EffectNone ->
             Cmd.none
 
-        EffectCheckAuth ->
+        EffectPushUrl url ->
+            Ports.pushUrl url
+
+        EffectReplaceUrl url ->
+            Ports.replaceUrl url
+
+        EffectCancelRequest tracker ->
+            Http.cancel tracker
+
+        EffectStoreData k v ->
+            Ports.storeData ( k, v )
+
+        EffectRequestData k ->
+            Ports.requestData k
+
+        EffectCheckAuth clientId ->
             Http.request
                 { method = "GET"
                 , url = "/api/check-auth"
                 , body = Http.emptyBody
                 , tracker = Nothing
                 , expect = Http.expectJson CheckedUserAuthorization (Decode.field "authorized" Decode.bool)
-                , headers = []
+                , headers =
+                    [ Shared.clientIdToHeader clientId
+                    ]
                 , timeout = Nothing
                 }
 
         EffectDashboard subEffect ->
             Dashboard.perform subEffect |> Cmd.map GotDashboardMsg
 
+        EffectLogin subEffect ->
+            Login.perform subEffect |> Cmd.map GotLoginMsg
+
         EffectBatch effects ->
             Cmd.batch (List.map perform effects)
 
 
 type Page
-    = Login
+    = Login Login.Model
     | Dashboard Dashboard.Model
     | NotFound
 
@@ -57,15 +86,13 @@ type Page
 type alias Flags =
     { url : String
     , languages : Nonempty ( LanguageId, Translations )
+    , clientId : ClientId
     }
-
-
-port linkClicked : (String -> msg) -> Sub msg
 
 
 flagsDecoder : Decoder Flags
 flagsDecoder =
-    Decode.map2
+    Decode.map3
         Flags
         (Decode.field "url" Decode.string)
         (Decode.field "languages"
@@ -82,17 +109,22 @@ flagsDecoder =
                     >> Maybe.withDefault (Decode.fail "No translations")
                 )
         )
+        (Decode.field "clientId" Decode.string
+            |> Decode.map ClientId
+        )
 
 
 type Msg
     = RouteChanged Route
     | CheckedUserAuthorization (Result Http.Error Bool)
     | GotDashboardMsg Dashboard.Msg
+    | GotLoginMsg Login.Msg
 
 
 type alias Model =
     { page : Page
     , user : HttpData User
+    , notification : Maybe ( Notification, String )
     , shared : Shared
     }
 
@@ -105,10 +137,11 @@ init flagsJson =
                 |> Result.map
                     (\flags ->
                         ( { page = NotFound
-                          , shared = Shared.init flags.languages
+                          , shared = Shared.init flags.clientId flags.languages
+                          , notification = Nothing
                           , user = HttpData.Loading Nothing
                           }
-                        , EffectCheckAuth
+                        , EffectCheckAuth flags.clientId
                         )
                             |> withRoute (Routes.parseUrl flags.url)
                     )
@@ -126,23 +159,27 @@ withRoute route ( model, effect ) =
     let
         appendEffect newEffect =
             EffectBatch [ effect, newEffect ]
+
+        ( nextModel, nextEffect ) =
+            case route of
+                Routes.NotFound ->
+                    ( { model | page = NotFound }, Nothing )
+
+                Routes.Login ->
+                    ( { model | page = Login Login.init }, Nothing )
+
+                Routes.Dashboard ->
+                    let
+                        ( page, appAction, pageEffect ) =
+                            Dashboard.init
+                                |> Tuple3.mapFirst Dashboard
+                                |> Tuple3.mapThird EffectDashboard
+                    in
+                    ( { model | page = page }, pageEffect )
+                        |> withAppAction appAction
+                        |> Tuple.mapSecond Just
     in
-    case route of
-        Routes.NotFound ->
-            ( { model | page = NotFound }, effect )
-
-        Routes.Login ->
-            ( { model | page = Login }, effect )
-
-        Routes.Dashboard ->
-            let
-                ( page, appAction, pageEffect ) =
-                    Dashboard.init
-                        |> Tuple3.mapFirst Dashboard
-                        |> Tuple3.mapThird EffectDashboard
-            in
-            ( { model | page = page }, appendEffect pageEffect )
-                |> withAppAction appAction
+    ( nextModel, Maybe.map appendEffect nextEffect |> Maybe.withDefault effect )
 
 
 withAppAction : Maybe AppAction -> ( Model, Effect ) -> ( Model, Effect )
@@ -150,13 +187,48 @@ withAppAction action ( model, effect ) =
     let
         appendEffect newEffect =
             EffectBatch [ effect, newEffect ]
-    in
-    case action of
-        Just _ ->
-            ( model, effect )
 
-        Nothing ->
-            ( model, effect )
+        ( nextModel, nextEffect ) =
+            case action of
+                Just (AppAction.ShowNotification notificationType message) ->
+                    ( { model
+                        | notification = Just ( notificationType, message )
+                      }
+                    , Nothing
+                    )
+
+                Just (AppAction.PushUrl url) ->
+                    ( model, Just (EffectPushUrl url) )
+
+                Just (AppAction.ReplaceUrl url) ->
+                    ( model, Just (EffectReplaceUrl url) )
+
+                Just (AppAction.CancelRequest tracker) ->
+                    ( model, Just (EffectCancelRequest tracker) )
+
+                Just AppAction.Logout ->
+                    ( model, Just (EffectReplaceUrl "/app/login") )
+
+                Just (AppAction.StoreData k v) ->
+                    ( model, Just (EffectStoreData k v) )
+
+                Just (AppAction.RequestData k) ->
+                    ( model, Just (EffectRequestData k) )
+
+                Just (AppAction.Batch actions) ->
+                    List.foldr
+                        withAppAction
+                        ( model, EffectNone )
+                        (List.map Just actions)
+                        |> Tuple.mapSecond Just
+
+                Just AppAction.None ->
+                    ( model, Nothing )
+
+                Nothing ->
+                    ( model, Nothing )
+    in
+    ( nextModel, Maybe.map appendEffect nextEffect |> Maybe.withDefault effect )
 
 
 update : Msg -> Model -> ( Model, Effect )
@@ -165,11 +237,26 @@ update msg model =
         ( GotDashboardMsg dashboardMsg, Dashboard page ) ->
             let
                 ( nextPage, appAction, effect ) =
-                    Dashboard.update dashboardMsg page
+                    Dashboard.update model.shared dashboardMsg page
                         |> Tuple3.mapFirst Dashboard
                         |> Tuple3.mapThird EffectDashboard
             in
             withAppAction appAction ( { model | page = nextPage }, effect )
+
+        ( GotDashboardMsg _, _ ) ->
+            ( model, EffectNone )
+
+        ( GotLoginMsg loginMsg, Login page ) ->
+            let
+                ( nextPage, appAction, effect ) =
+                    Login.update model.shared loginMsg page
+                        |> Tuple3.mapFirst Login
+                        |> Tuple3.mapThird EffectLogin
+            in
+            withAppAction appAction ( { model | page = nextPage }, effect )
+
+        ( GotLoginMsg _, _ ) ->
+            ( model, EffectNone )
 
         ( CheckedUserAuthorization (Ok True), _ ) ->
             ( model, EffectNone )
@@ -180,15 +267,12 @@ update msg model =
         ( CheckedUserAuthorization (Err _), _ ) ->
             ( model, EffectNone )
 
-        ( GotDashboardMsg _, _ ) ->
-            ( model, EffectNone )
-
         ( RouteChanged route, Dashboard page ) ->
             withAppAction (Dashboard.unload page) ( model, EffectNone )
                 |> withRoute route
 
-        ( RouteChanged route, Login ) ->
-            ( model, EffectNone )
+        ( RouteChanged route, Login page ) ->
+            withAppAction (Login.unload page) ( model, EffectNone )
                 |> withRoute route
 
         ( RouteChanged route, NotFound ) ->
@@ -197,22 +281,60 @@ update msg model =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    linkClicked (Routes.parseUrl >> RouteChanged)
+subscriptions model =
+    Sub.batch
+        [ Ports.linkClicked (Routes.parseUrl >> RouteChanged)
+        , case model.page of
+            Login page ->
+                Login.subscriptions page
+                    |> Sub.map GotLoginMsg
+
+            Dashboard page ->
+                Dashboard.subscriptions page
+                    |> Sub.map GotDashboardMsg
+
+            NotFound ->
+                Sub.none
+        ]
 
 
 view : Model -> Html Msg
 view model =
-    case model.page of
-        Login ->
-            Login.view
+    layout model.shared <|
+        case model.page of
+            Login page ->
+                Login.view model.shared page
+                    |> H.map GotLoginMsg
 
-        Dashboard page ->
-            Dashboard.view model.shared page
-                |> H.map GotDashboardMsg
+            Dashboard page ->
+                Dashboard.view model.shared page
+                    |> H.map GotDashboardMsg
 
-        NotFound ->
-            H.text "Page not found"
+            NotFound ->
+                H.text "Page not found"
+
+
+layout : Shared -> Html Msg -> Html Msg
+layout shared body =
+    let
+        theme =
+            shared.theme
+    in
+    H.div
+        [ A.css
+            [ Css.position Css.absolute
+            , Css.top (Css.px 0)
+            , Css.left (Css.px 0)
+            , Css.bottom (Css.px 0)
+            , Css.right (Css.px 0)
+            , Css.overflow Css.auto
+            , Css.backgroundColor theme.bodyBackground
+            , Css.color theme.bodyFont
+            , Css.fontFamilies [ "system-ui", "Avenir", "sans-serif" ]
+            ]
+        ]
+        [ body
+        ]
 
 
 errorView : Error -> Html Msg

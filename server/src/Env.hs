@@ -1,4 +1,4 @@
-module Env where
+module Env (getEnv, Env (..)) where
 
 import Configuration.Dotenv qualified as Dotenv
 import Control.Monad.Trans.Except
