@@ -4,6 +4,8 @@
     "description": "",
     "main": "index.js",
     "scripts": {
+        "review": "elm-review",
+        "review:fix": "elm-review --fix",
         "test": "echo \"Error: no test specified\" && exit 1",
         "build:translations": "elm-i18next-gen --fallback --overwrite --source public/translations.en.json --target src"
     },
@@ -11,6 +13,7 @@
     "license": "ISC",
     "devDependencies": {
         "elm-i18next-gen": "^1.1.0",
+        "elm-review": "^2.7.5",
         "elm-test": "^0.19.1-revision9"
     }
 }

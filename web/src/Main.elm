@@ -2,13 +2,12 @@ module Main exposing (..)
 
 import AppAction exposing (AppAction, Notification)
 import Browser
-import Css
 import Html.Styled as H exposing (Html)
-import Html.Styled.Attributes as A
 import Http
 import HttpData exposing (HttpData)
 import I18Next exposing (Translations)
 import Json.Decode as Decode exposing (Decoder, Error, Value)
+import Layout
 import List.Nonempty as Nonempty exposing (Nonempty(..))
 import Page.Dashboard as Dashboard
 import Page.Login as Login
@@ -117,12 +116,14 @@ flagsDecoder =
 type Msg
     = RouteChanged Route
     | CheckedUserAuthorization (Result Http.Error Bool)
+    | GotLayoutMsg Layout.Msg
     | GotDashboardMsg Dashboard.Msg
     | GotLoginMsg Login.Msg
 
 
 type alias Model =
     { page : Page
+    , layout : Layout.Model
     , user : HttpData User
     , notification : Maybe ( Notification, String )
     , shared : Shared
@@ -140,6 +141,7 @@ init flagsJson =
                           , shared = Shared.init flags.clientId flags.languages
                           , notification = Nothing
                           , user = HttpData.Loading Nothing
+                          , layout = Layout.init
                           }
                         , EffectCheckAuth flags.clientId
                         )
@@ -234,6 +236,9 @@ withAppAction action ( model, effect ) =
 update : Msg -> Model -> ( Model, Effect )
 update msg model =
     case ( msg, model.page ) of
+        ( GotLayoutMsg layoutMsg, _ ) ->
+            ( { model | layout = Layout.update layoutMsg model.layout }, EffectNone )
+
         ( GotDashboardMsg dashboardMsg, Dashboard page ) ->
             let
                 ( nextPage, appAction, effect ) =
@@ -300,7 +305,7 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
-    layout model.shared <|
+    Layout.view GotLayoutMsg model.shared model.layout <|
         case model.page of
             Login page ->
                 Login.view model.shared page
@@ -312,29 +317,6 @@ view model =
 
             NotFound ->
                 H.text "Page not found"
-
-
-layout : Shared -> Html Msg -> Html Msg
-layout shared body =
-    let
-        theme =
-            shared.theme
-    in
-    H.div
-        [ A.css
-            [ Css.position Css.absolute
-            , Css.top (Css.px 0)
-            , Css.left (Css.px 0)
-            , Css.bottom (Css.px 0)
-            , Css.right (Css.px 0)
-            , Css.overflow Css.auto
-            , Css.backgroundColor theme.bodyBackground
-            , Css.color theme.bodyFont
-            , Css.fontFamilies [ "system-ui", "Avenir", "sans-serif" ]
-            ]
-        ]
-        [ body
-        ]
 
 
 errorView : Error -> Html Msg

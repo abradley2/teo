@@ -1,5 +1,3 @@
-{-# LANGUAGE RankNTypes #-}
-
 module Action (AppError (..), ActionM, withError, runHandler, handleError, createLogger, throwError) where
 
 import Control.Monad.Logger (LoggingT (LoggingT))

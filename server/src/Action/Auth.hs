@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -Wno-unused-do-bind #-}
-
 module Action.Auth (withAuth, authorize, AuthToken (..), checkAuth) where
 
 import Action (ActionM, AppError (..))
@@ -88,21 +86,21 @@ authorize = do
             Redis.set (Text.encodeUtf8 clientToken) (Text.encodeUtf8 authToken)
                 >>= const (Redis.expire (Text.encodeUtf8 clientToken) 3600)
 
-    either (const $ pure ()) (const $ Action.Cookie.setCookie authCookieName clientToken) storeTokenResult
-
-    Action.withError
-        logger
-        ( \err ->
-            AppError
-                { log = Just $ "Failed to store auth token in Redis: " <> show err
-                , response = "Internal server error"
-                , status = status500
-                }
-        )
-        storeTokenResult
-        >>= const
-            ( ScottyT.json $ CheckAuthResponse True
+    void $
+        Action.withError
+            logger
+            ( \err ->
+                AppError
+                    { log = Just $ "Failed to store auth token in Redis: " <> show err
+                    , response = "Internal server error"
+                    , status = status500
+                    }
             )
+            storeTokenResult
+
+    Action.Cookie.setCookie authCookieName clientToken
+
+    ScottyT.json $ CheckAuthResponse True
 
 newtype CheckAuthResponse = CheckAuthResponse {authorized :: Bool}
 
