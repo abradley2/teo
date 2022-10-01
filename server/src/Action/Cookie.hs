@@ -37,4 +37,5 @@ setCookie name value =
                         { Cookie.setCookieName = Text.encodeUtf8 name
                         , Cookie.setCookieValue = Text.encodeUtf8 value
                         , Cookie.setCookieHttpOnly = True
+                        , Cookie.setCookieSecure = True
                         }

@@ -1,4 +1,4 @@
-module Page.Login exposing (..)
+module Page.Login exposing (Effect(..), LoginResponse, Model, Msg(..), init, perform, subscriptions, unload, update, view)
 
 import AppAction exposing (AppAction)
 import Html.Styled as H exposing (Html)
@@ -80,6 +80,7 @@ update shared msg model =
 
         LoginClicked ->
             let
+                tracker : Maybe String
                 tracker =
                     Just "login request"
             in
@@ -97,7 +98,7 @@ update shared msg model =
             , EffectNone
             )
 
-        ReceivedLoginResponse (Ok response) ->
+        ReceivedLoginResponse (Ok _) ->
             ( { model | loginRequest = Success () }
             , Just <| AppAction.ReplaceUrl "/"
             , EffectNone
@@ -115,7 +116,7 @@ dataKey =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Ports.receiveData
         (\( key, value ) ->
             if key == dataKey then

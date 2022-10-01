@@ -1,4 +1,4 @@
-module User exposing (..)
+module User exposing (User)
 
 
 type alias User =

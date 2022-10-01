@@ -1,4 +1,4 @@
-module HttpData exposing (..)
+module HttpData exposing (HttpData(..))
 
 import Http
 

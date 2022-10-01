@@ -1,4 +1,4 @@
-module Layout exposing (..)
+module Layout exposing (Model, Msg(..), init, update, view)
 
 import Css
 import Css.Transitions as Transitions

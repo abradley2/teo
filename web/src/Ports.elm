@@ -1,4 +1,4 @@
-port module Ports exposing (..)
+port module Ports exposing (linkClicked, pushUrl, receiveData, replaceUrl, requestData, storeData)
 
 import Json.Decode exposing (Value)
 

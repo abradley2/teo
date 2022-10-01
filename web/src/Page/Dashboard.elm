@@ -1,4 +1,4 @@
-module Page.Dashboard exposing (..)
+module Page.Dashboard exposing (Effect(..), Model, Msg(..), init, perform, subscriptions, unload, update, view)
 
 import AppAction exposing (AppAction)
 import Html.Styled as H exposing (Html)
@@ -42,7 +42,7 @@ init =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Ports.receiveData
         (\( key, value ) ->
             if key == dataKey then
@@ -54,7 +54,7 @@ subscriptions model =
 
 
 unload : Model -> Maybe AppAction
-unload model =
+unload _ =
     Nothing
 
 

@@ -1,4 +1,4 @@
-module Routes exposing (..)
+module Routes exposing (Route(..), parseUrl)
 
 import Url
 import Url.Parser as Parser exposing ((</>), Parser)

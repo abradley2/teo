@@ -1,4 +1,4 @@
-module Main exposing (..)
+module Main exposing (Effect(..), Flags, Model, Msg(..), Page(..), main)
 
 import AppAction exposing (AppAction, Notification)
 import Browser
@@ -8,7 +8,7 @@ import HttpData exposing (HttpData)
 import I18Next exposing (Translations)
 import Json.Decode as Decode exposing (Decoder, Error, Value)
 import Layout
-import List.Nonempty as Nonempty exposing (Nonempty(..))
+import List.Nonempty as Nonempty exposing (Nonempty)
 import Page.Dashboard as Dashboard
 import Page.Login as Login
 import Ports
@@ -23,7 +23,7 @@ type Effect
     = EffectNone
     | EffectDashboard Dashboard.Effect
     | EffectLogin Login.Effect
-    | EffectCheckAuth ClientId
+    | EffectCheckAuth ClientId String
     | EffectStoreData String Value
     | EffectRequestData String
     | EffectCancelRequest String
@@ -53,13 +53,13 @@ perform effect =
         EffectRequestData k ->
             Ports.requestData k
 
-        EffectCheckAuth clientId ->
+        EffectCheckAuth clientId redirectUrl ->
             Http.request
                 { method = "GET"
                 , url = "/api/check-auth"
                 , body = Http.emptyBody
                 , tracker = Nothing
-                , expect = Http.expectJson CheckedUserAuthorization (Decode.field "authorized" Decode.bool)
+                , expect = Http.expectJson (CheckedUserAuthorization redirectUrl) (Decode.field "authorized" Decode.bool)
                 , headers =
                     [ Shared.clientIdToHeader clientId
                     ]
@@ -77,7 +77,8 @@ perform effect =
 
 
 type Page
-    = Login Login.Model
+    = CheckAuth
+    | Login Login.Model
     | Dashboard Dashboard.Model
     | NotFound
 
@@ -115,7 +116,7 @@ flagsDecoder =
 
 type Msg
     = RouteChanged Route
-    | CheckedUserAuthorization (Result Http.Error Bool)
+    | CheckedUserAuthorization String (Result Http.Error Bool)
     | GotLayoutMsg Layout.Msg
     | GotDashboardMsg Dashboard.Msg
     | GotLoginMsg Login.Msg
@@ -137,15 +138,14 @@ init flagsJson =
             Decode.decodeValue flagsDecoder flagsJson
                 |> Result.map
                     (\flags ->
-                        ( { page = NotFound
+                        ( { page = CheckAuth
                           , shared = Shared.init flags.clientId flags.languages
                           , notification = Nothing
                           , user = HttpData.Loading Nothing
                           , layout = Layout.init
                           }
-                        , EffectCheckAuth flags.clientId
+                        , EffectCheckAuth flags.clientId flags.url
                         )
-                            |> withRoute (Routes.parseUrl flags.url)
                     )
     in
     case initResult of
@@ -263,13 +263,17 @@ update msg model =
         ( GotLoginMsg _, _ ) ->
             ( model, EffectNone )
 
-        ( CheckedUserAuthorization (Ok True), _ ) ->
-            ( model, EffectNone )
+        ( CheckedUserAuthorization redirectUrl (Ok True), _ ) ->
+            ( model
+            , EffectReplaceUrl redirectUrl
+            )
 
-        ( CheckedUserAuthorization (Ok False), _ ) ->
-            ( model, EffectNone )
+        ( CheckedUserAuthorization _ (Ok False), _ ) ->
+            ( model
+            , EffectReplaceUrl "/app/login"
+            )
 
-        ( CheckedUserAuthorization (Err _), _ ) ->
+        ( CheckedUserAuthorization _ (Err _), _ ) ->
             ( model, EffectNone )
 
         ( RouteChanged route, Dashboard page ) ->
@@ -281,6 +285,10 @@ update msg model =
                 |> withRoute route
 
         ( RouteChanged route, NotFound ) ->
+            ( model, EffectNone )
+                |> withRoute route
+
+        ( RouteChanged route, CheckAuth ) ->
             ( model, EffectNone )
                 |> withRoute route
 
@@ -298,6 +306,9 @@ subscriptions model =
                 Dashboard.subscriptions page
                     |> Sub.map GotDashboardMsg
 
+            CheckAuth ->
+                Sub.none
+
             NotFound ->
                 Sub.none
         ]
@@ -314,6 +325,9 @@ view model =
             Dashboard page ->
                 Dashboard.view model.shared page
                     |> H.map GotDashboardMsg
+
+            CheckAuth ->
+                H.text "Authorizing User"
 
             NotFound ->
                 H.text "Page not found"

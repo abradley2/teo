@@ -1,4 +1,4 @@
-module AppAction exposing (..)
+module AppAction exposing (AppAction(..), Notification(..), cancelRequest)
 
 import HttpData exposing (HttpData(..))
 import Json.Encode exposing (Value)
@@ -27,7 +27,4 @@ cancelRequest data =
 
 
 type Notification
-    = NotificationInfo
-    | NotificationSuccess
-    | NotificationWarning
-    | NotificationError
+    = NotificationError
