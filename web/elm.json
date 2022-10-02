@@ -30,8 +30,20 @@
     },
     "test-dependencies": {
         "direct": {
-            "elm-explorations/test": "1.2.2"
+            "avh4/elm-program-test": "3.7.0",
+            "elm-explorations/test": "1.2.2",
+            "mdgriffith/elm-codegen": "2.0.0"
         },
-        "indirect": {}
+        "indirect": {
+            "avh4/elm-fifo": "1.0.4",
+            "hecrj/html-parser": "2.4.0",
+            "elm/parser": "1.1.0",
+            "elm-community/basics-extra": "4.1.0",
+            "elm-community/list-extra": "8.6.0",
+            "miniBill/elm-unicode": "1.0.2",
+            "stil4m/elm-syntax": "7.2.9",
+            "stil4m/structured-writer": "1.0.3",
+            "the-sett/elm-pretty-printer": "3.0.0"
+        }
     }
 }

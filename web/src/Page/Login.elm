@@ -1,4 +1,4 @@
-module Page.Login exposing (Effect(..), LoginResponse, Model, Msg(..), init, perform, subscriptions, unload, update, view)
+module Page.Login exposing (Effect(..), LoginResponse, Model, Msg(..), init, loginResponseDecoder, loginUrl, perform, subscriptions, unload, update, view)
 
 import AppAction exposing (AppAction)
 import Html.Styled as H exposing (Html)

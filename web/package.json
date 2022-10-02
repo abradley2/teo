@@ -6,12 +6,13 @@
     "scripts": {
         "review": "elm-review",
         "review:fix": "elm-review --fix",
-        "test": "echo \"Error: no test specified\" && exit 1",
+        "test": "elm-test",
         "build:translations": "elm-i18next-gen --fallback --overwrite --source public/translations.en.json --target src"
     },
     "author": "",
     "license": "ISC",
     "devDependencies": {
+        "elm-codegen": "^0.2.0",
         "elm-i18next-gen": "^1.1.0",
         "elm-review": "^2.7.5",
         "elm-test": "^0.19.1-revision9"

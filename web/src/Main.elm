@@ -1,4 +1,4 @@
-module Main exposing (Effect(..), Flags, Model, Msg(..), Page(..), main)
+module Main exposing (Effect(..), Flags, Model, Msg(..), Page(..), checkAuthUrl, checkAuthResponseDecoder, init, initWithFlags, main, update, view)
 
 import AppAction exposing (AppAction, Notification)
 import Browser
@@ -32,6 +32,12 @@ type Effect
     | EffectBatch (List Effect)
 
 
+checkAuthUrl : String
+checkAuthUrl = "/api/check-auth"
+
+checkAuthResponseDecoder : Decoder Bool
+checkAuthResponseDecoder =  (Decode.field "authorized" Decode.bool)
+
 perform : Effect -> Cmd Msg
 perform effect =
     case effect of
@@ -56,14 +62,14 @@ perform effect =
         EffectCheckAuth clientId redirectUrl ->
             Http.request
                 { method = "GET"
-                , url = "/api/check-auth"
+                , url = checkAuthUrl
                 , body = Http.emptyBody
                 , tracker = Nothing
-                , expect = Http.expectJson (CheckedUserAuthorization redirectUrl) (Decode.field "authorized" Decode.bool)
+                , expect = Http.expectJson (CheckedUserAuthorization redirectUrl) checkAuthResponseDecoder
                 , headers =
                     [ Shared.clientIdToHeader clientId
                     ]
-                , timeout = Nothing
+                , timeout = Just 5000
                 }
 
         EffectDashboard subEffect ->
@@ -115,7 +121,8 @@ flagsDecoder =
 
 
 type Msg
-    = RouteChanged Route
+    = NoOp
+    | RouteChanged Route
     | CheckedUserAuthorization String (Result Http.Error Bool)
     | GotLayoutMsg Layout.Msg
     | GotDashboardMsg Dashboard.Msg
@@ -131,22 +138,24 @@ type alias Model =
     }
 
 
+initWithFlags : Flags -> ( Model, Effect )
+initWithFlags flags =
+    ( { page = CheckAuth
+      , shared = Shared.init flags.clientId flags.languages
+      , notification = Nothing
+      , user = HttpData.Loading Nothing
+      , layout = Layout.init
+      }
+    , EffectCheckAuth flags.clientId flags.url
+    )
+
+
 init : Value -> ( Result Error Model, Effect )
 init flagsJson =
     let
         initResult =
             Decode.decodeValue flagsDecoder flagsJson
-                |> Result.map
-                    (\flags ->
-                        ( { page = CheckAuth
-                          , shared = Shared.init flags.clientId flags.languages
-                          , notification = Nothing
-                          , user = HttpData.Loading Nothing
-                          , layout = Layout.init
-                          }
-                        , EffectCheckAuth flags.clientId flags.url
-                        )
-                    )
+                |> Result.map initWithFlags
     in
     case initResult of
         Ok ( model, effect ) ->
@@ -236,6 +245,9 @@ withAppAction action ( model, effect ) =
 update : Msg -> Model -> ( Model, Effect )
 update msg model =
     case ( msg, model.page ) of
+        ( NoOp, _ ) ->
+            ( model, EffectNone )
+
         ( GotLayoutMsg layoutMsg, _ ) ->
             ( { model | layout = Layout.update layoutMsg model.layout }, EffectNone )
 
