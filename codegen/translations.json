@@ -1,0 +1,9 @@
+{
+    "hello": "world",
+    "login": {
+        "message": "Hello {{name}}"
+    },
+    "testOne": "Just one {{replacement}} here",
+    "testTwo": "I am a {{subject}} who is {{adjective}} test",
+    "testThree": "The {{adjective}} {{subject}} {{verb}} quickly"
+}
