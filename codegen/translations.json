@@ -3,7 +3,7 @@
     "login": {
         "message": "Hello {{name}}"
     },
-    "testOne": "Just one {{replacement}} here",
-    "testTwo": "I am a {{subject}} who is {{adjective}} test",
-    "testThree": "The {{adjective}} {{subject}} {{verb}} quickly"
+    "test Oneeee": "Just one {{replacement}} here",
+    "test Twos": "I am a {{subject}} who is {{adjective}} test",
+    "test Three": "The {{adjective}} {{subject}} {{verb}} quickly"
 }
