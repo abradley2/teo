@@ -1,16 +1,18 @@
-module Gen.I18Next exposing (annotation_, call_, caseOf_, customTr, customTrf, fromTree, hasKey, initialTranslations, keys, make_, moduleName_, object, string, t, tf, tr, translationsDecoder, trf, values_)
+module Gen.I18Next exposing (values_, call_, caseOf_, make_, annotation_, object, string, fromTree, hasKey, keys, customTrf, customTr, trf, tf, tr, t, translationsDecoder, initialTranslations, moduleName_)
 
-{-| 
+{-|
+
 @docs values_, call_, caseOf_, make_, annotation_, object, string, fromTree, hasKey, keys, customTrf, customTr, trf, tf, tr, t, translationsDecoder, initialTranslations, moduleName_
--}
 
+-}
 
 import Elm
 import Elm.Annotation as Type
 import Elm.Case
 
 
-{-| The name of this module. -}
+{-| The name of this module.
+-}
 moduleName_ : List String
 moduleName_ =
     [ "I18Next" ]
@@ -21,6 +23,7 @@ when loading translations but you need to initialize your model before
 your translations are fetched.
 
 initialTranslations: I18Next.Translations
+
 -}
 initialTranslations : Elm.Expression
 initialTranslations =
@@ -58,6 +61,7 @@ functions separated with dots.
     Json.Decode.decodeValue translationsDecoder encodedJson
 
 translationsDecoder: Json.Decode.Decoder I18Next.Translations
+
 -}
 translationsDecoder : Elm.Expression
 translationsDecoder =
@@ -83,6 +87,7 @@ translationsDecoder =
     t translations "greet.hello" -- "Hello"
 
 t: I18Next.Translations -> String -> String
+
 -}
 t : Elm.Expression -> String -> Elm.Expression
 t tArg tArg0 =
@@ -112,12 +117,13 @@ Use this when you need to replace placeholders.
     import I18Next exposing (tr, Delims(..))
     tr translations Curly "greet" [("name", "Peter")]
 
-tr: 
-    I18Next.Translations
-    -> I18Next.Delims
-    -> String
-    -> I18Next.Replacements
-    -> String
+tr:
+I18Next.Translations
+-> I18Next.Delims
+-> String
+-> I18Next.Replacements
+-> String
+
 -}
 tr :
     Elm.Expression
@@ -156,6 +162,7 @@ of languages, the function will try each language in the list.
     tf [germanTranslations, englishTranslations] "labels.greetings.hello"
 
 tf: List I18Next.Translations -> String -> String
+
 -}
 tf : List Elm.Expression -> String -> Elm.Expression
 tf tfArg tfArg0 =
@@ -188,12 +195,13 @@ at the same time.
     in
       trf langList Curly "greet" [("name", "Peter")] -- "Hello Peter"
 
-trf: 
-    List I18Next.Translations
-    -> I18Next.Delims
-    -> String
-    -> I18Next.Replacements
-    -> String
+trf:
+List I18Next.Translations
+-> I18Next.Delims
+-> String
+-> I18Next.Replacements
+-> String
+
 -}
 trf :
     List Elm.Expression
@@ -239,13 +247,14 @@ In most cases you'll just pass `Html.text` here.
 
 If you only want `String`s though, use [`tr`](I18Next#tr) instead.
 
-customTr: 
-    I18Next.Translations
-    -> I18Next.Delims
-    -> (String -> a)
-    -> String
-    -> I18Next.CustomReplacements a
-    -> List a
+customTr:
+I18Next.Translations
+-> I18Next.Delims
+-> (String -> a)
+-> String
+-> I18Next.CustomReplacements a
+-> List a
+
 -}
 customTr :
     Elm.Expression
@@ -285,13 +294,14 @@ customTr customTrArg customTrArg0 customTrArg1 customTrArg2 customTrArg3 =
 
 {-| Like [`customTr`](I18Next#customTr) but with support for fallback languages.
 
-customTrf: 
-    List I18Next.Translations
-    -> I18Next.Delims
-    -> (String -> a)
-    -> String
-    -> I18Next.CustomReplacements a
-    -> List a
+customTrf:
+List I18Next.Translations
+-> I18Next.Delims
+-> (String -> a)
+-> String
+-> I18Next.CustomReplacements a
+-> List a
+
 -}
 customTrf :
     List Elm.Expression
@@ -336,6 +346,7 @@ but not the other. The order of the keys is arbitrary and should not be relied
 on.
 
 keys: I18Next.Translations -> List String
+
 -}
 keys : Elm.Expression -> Elm.Expression
 keys keysArg =
@@ -358,6 +369,7 @@ keys keysArg =
 translations.
 
 hasKey: I18Next.Translations -> String -> Bool
+
 -}
 hasKey : Elm.Expression -> String -> Elm.Expression
 hasKey hasKeyArg hasKeyArg0 =
@@ -398,6 +410,7 @@ hasKey hasKeyArg hasKeyArg0 =
     t translations "custom.morning" -- "Morning"
 
 fromTree: List ( String, I18Next.Tree ) -> I18Next.Translations
+
 -}
 fromTree : List Elm.Expression -> Elm.Expression
 fromTree fromTreeArg =
@@ -425,6 +438,7 @@ fromTree fromTreeArg =
 string.
 
 string: String -> I18Next.Tree
+
 -}
 string : String -> Elm.Expression
 string stringArg =
@@ -446,6 +460,7 @@ string stringArg =
 {-| Let's you arange your translations in a hierarchy of objects.
 
 object: List ( String, I18Next.Tree ) -> I18Next.Tree
+
 -}
 object : List Elm.Expression -> Elm.Expression
 object objectArg =
@@ -504,9 +519,9 @@ make_ :
 make_ =
     { curly =
         Elm.value
-            { importFrom = ["I18Next"]
+            { importFrom = [ "I18Next" ]
             , name = "Curly"
-            , annotation = Just (Type.namedWith ["I18Next"] "Delims" [])
+            , annotation = Just (Type.namedWith [ "I18Next" ] "Delims" [])
             }
     , underscore =
         Elm.value
@@ -530,11 +545,12 @@ make_ =
 caseOf_ :
     { delims :
         Elm.Expression
-        -> { delimsTags_0_0
-            | curly : Elm.Expression
-            , underscore : Elm.Expression
-            , custom : Elm.Expression -> Elm.Expression
-        }
+        ->
+            { delimsTags_0_0
+                | curly : Elm.Expression
+                , underscore : Elm.Expression
+                , custom : Elm.Expression -> Elm.Expression
+            }
         -> Elm.Expression
     }
 caseOf_ =
@@ -1022,5 +1038,3 @@ values_ =
                     )
             }
     }
-
-
