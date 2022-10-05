@@ -1,9 +1,0 @@
-{
-    "hello": "world",
-    "login": {
-        "message": "Hello {{name}}"
-    },
-    "test Oneeee": "Just one {{replacement}} here",
-    "test Twos": "I am a {{subject}} who is {{adjective}} test",
-    "test Three": "The {{adjective}} {{subject}} {{verb}} quickly"
-}
