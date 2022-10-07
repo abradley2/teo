@@ -51,6 +51,33 @@ view toMsg shared model body =
         ]
         [ H.div
             [ A.css
+                [ Css.position Css.fixed
+                , Css.top (Css.rem 1)
+                , Css.right (Css.rem 1)
+                , Css.backgroundColor theme.bodySecondaryForeground
+                , Css.color theme.bodySecondaryForegroundFont
+                , Css.border3 (Css.px 1) Css.solid theme.bodySecondaryForegroundBorder
+                ]
+            ]
+            [ H.div
+                [ A.css
+                    [ Css.position Css.relative
+                    , Css.padding2 (Css.rem 2) (Css.rem 1)
+                    ]
+                ]
+                [ H.text "Oh my something terrible has happened- or at least something noteworth"
+                , H.button
+                    [ A.css
+                        [ Css.top (Css.rem 0.25)
+                        , Css.right (Css.rem 0.25)
+                        , Css.position Css.absolute
+                        ]
+                    ]
+                    [ H.text "X" ]
+                ]
+            ]
+        , H.div
+            [ A.css
                 [ Css.displayFlex
                 , Css.width (Css.pct 100)
                 , Css.height (Css.pct 100)

@@ -12,6 +12,7 @@ type alias Theme =
     , bodySecondaryForegroundBorder : Css.Color
     , bodyFont : Css.Color
     , bodyForegroundFont : Css.Color
+    , bodySecondaryForegroundFont : Css.Color
     }
 
 
@@ -25,4 +26,5 @@ darkTheme =
     , bodySecondaryForegroundBorder = Css.hex "#6a7d90"
     , bodyFont = Css.hex "#7a8ea2"
     , bodyForegroundFont = Css.hex "#8a9fb4"
+    , bodySecondaryForegroundFont = Css.hex "#d0d9e1"
     }

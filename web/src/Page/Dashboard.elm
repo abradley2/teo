@@ -68,5 +68,5 @@ view shared model =
     H.div
         []
         [ H.text <|
-            Translations.Dashboard.greeting shared.language "Tony"
+            Translations.Dashboard.greeting shared.language { name = "Tony" }
         ]

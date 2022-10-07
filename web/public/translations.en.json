@@ -1,8 +1,9 @@
 {
+    "check authorization error": "There was an error when checking your user authorization.",
     "dashboard": {
         "greeting": "Hello, {{name}}"
     },
     "login": {
-        "buttonPrompt": "Click here to login"
+        "button prompt": "Click here to login"
     }
 }

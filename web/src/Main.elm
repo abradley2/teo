@@ -1,4 +1,4 @@
-module Main exposing (Effect(..), Flags, Model, Msg(..), Page(..), checkAuthUrl, checkAuthResponseDecoder, init, initWithFlags, main, update, view)
+module Main exposing (Effect(..), Flags, Model, Msg(..), Page(..), checkAuthResponseDecoder, checkAuthUrl, init, initWithFlags, main, update, view)
 
 import AppAction exposing (AppAction, Notification)
 import Browser
@@ -7,14 +7,16 @@ import Http
 import HttpData exposing (HttpData)
 import I18Next exposing (Translations)
 import Json.Decode as Decode exposing (Decoder, Error, Value)
+import Language
 import Layout
-import List.Nonempty as Nonempty exposing (Nonempty)
+import List.Nonempty exposing (Nonempty(..))
 import Page.Dashboard as Dashboard
 import Page.Login as Login
 import Ports
 import Result.Extra as Result
 import Routes exposing (Route)
 import Shared exposing (ClientId(..), LanguageId, Shared)
+import Translations
 import Tuple3
 import User exposing (User)
 
@@ -33,10 +35,14 @@ type Effect
 
 
 checkAuthUrl : String
-checkAuthUrl = "/api/check-auth"
+checkAuthUrl =
+    "/api/check-auth"
+
 
 checkAuthResponseDecoder : Decoder Bool
-checkAuthResponseDecoder =  (Decode.field "authorized" Decode.bool)
+checkAuthResponseDecoder =
+    Decode.field "authorized" Decode.bool
+
 
 perform : Effect -> Cmd Msg
 perform effect =
@@ -109,11 +115,8 @@ flagsDecoder =
                     (Decode.field "1" I18Next.translationsDecoder)
                 )
             )
-            |> Decode.andThen
-                (Nonempty.fromList
-                    >> Maybe.map Decode.succeed
-                    >> Maybe.withDefault (Decode.fail "No translations")
-                )
+            |> Decode.map
+                (Nonempty ( Shared.EN, Language.defaultLanguage ))
         )
         (Decode.field "clientId" Decode.string
             |> Decode.map ClientId
@@ -209,16 +212,16 @@ withAppAction action ( model, effect ) =
                     )
 
                 Just (AppAction.PushUrl url) ->
-                    ( model, Just (EffectPushUrl url) )
+                    ( model, Just <| EffectPushUrl url )
 
                 Just (AppAction.ReplaceUrl url) ->
-                    ( model, Just (EffectReplaceUrl url) )
+                    ( model, Just <| EffectReplaceUrl url )
 
                 Just (AppAction.CancelRequest tracker) ->
                     ( model, Just (EffectCancelRequest tracker) )
 
                 Just AppAction.Logout ->
-                    ( model, Just (EffectReplaceUrl "/app/login") )
+                    ( model, Just <| EffectReplaceUrl "/app/login" )
 
                 Just (AppAction.StoreData k v) ->
                     ( model, Just (EffectStoreData k v) )
@@ -287,6 +290,12 @@ update msg model =
 
         ( CheckedUserAuthorization _ (Err _), _ ) ->
             ( model, EffectNone )
+                |> withAppAction
+                    (Just <|
+                        AppAction.ShowNotification
+                            AppAction.NotificationError
+                            (Translations.checkAuthorizationError model.shared.language)
+                    )
 
         ( RouteChanged route, Dashboard page ) ->
             withAppAction (Dashboard.unload page) ( model, EffectNone )

@@ -12,13 +12,17 @@ defaultLanguage =
     I18Next.fromTree
         [ ( ""
           , I18Next.object
-                [ ( "dashboard"
+                [ ( "check authorization error"
+                  , I18Next.string
+                        "There was an error when checking your user authorization."
+                  )
+                , ( "dashboard"
                   , I18Next.object
                         [ ( "greeting", I18Next.string "Hello, {{name}}" ) ]
                   )
                 , ( "login"
                   , I18Next.object
-                        [ ( "buttonPrompt"
+                        [ ( "button prompt"
                           , I18Next.string "Click here to login"
                           )
                         ]

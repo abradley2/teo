@@ -46,14 +46,10 @@ perform effect =
             SimulatedCmd.none
 
         Main.EffectReplaceUrl url ->
-            let
-                a =
-                    Debug.log "url" url
-            in
-            SimulatedNavigation.load url
+            SimulatedNavigation.replaceUrl url
 
         Main.EffectPushUrl url ->
-            SimulatedNavigation.load url
+            SimulatedNavigation.pushUrl url
 
         Main.EffectStoreData key value ->
             SimulatedPorts.send "storeData"

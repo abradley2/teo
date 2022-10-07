@@ -2,7 +2,7 @@ module TestApp exposing (..)
 
 import Browser
 import Html.Styled
-import I18Next
+import Language exposing (defaultLanguage)
 import List.Nonempty exposing (Nonempty(..))
 import Main
 import ProgramTest exposing (ProgramDefinition, ProgramTest, SimulatedEffect)
@@ -28,7 +28,7 @@ baseUrl =
 defaultFlags : Main.Flags
 defaultFlags =
     { clientId = ClientId "test-client-id"
-    , languages = Nonempty ( Shared.EN, I18Next.initialTranslations ) []
+    , languages = Nonempty ( Shared.EN, defaultLanguage ) []
     , url = baseUrl
     }
 
@@ -45,7 +45,11 @@ withBaseUrl =
 
 withSimulatedEffects : (Main.Effect -> Maybe (SimulatedEffect Main.Msg)) -> MainProgramDefinition -> MainProgramDefinition
 withSimulatedEffects transform =
-    ProgramTest.withSimulatedEffects (\effect -> transform effect |> Maybe.withDefault (SimulatedEffect.Main.perform <| Debug.log "PERFORM EFFECT" effect))
+    ProgramTest.withSimulatedEffects
+        (\effect ->
+            transform effect
+                |> Maybe.withDefault (SimulatedEffect.Main.perform effect)
+        )
 
 
 testProgram : MainProgramDefinition
