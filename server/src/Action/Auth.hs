@@ -2,15 +2,21 @@ module Action.Auth (withAuth, authorize, AuthToken (..), checkAuth) where
 
 import Action (ActionM, AppError (..))
 import Action qualified
+import Action.Auth.AuthorizeRequest (AuthorizeRequest (..))
+import Action.Auth.AuthorizeResponse (AuthorizeResponse (..))
+import Action.Auth.CheckAuthResponse (CheckAuthResponse (..))
 import Action.Cookie qualified
 import Control.Monad.Logger qualified as Logger
-import Data.Aeson (ToJSON)
 import Data.Aeson qualified as Aeson
+import Data.Bson (Field ((:=)))
+import Data.Bson qualified as Bson
+import Data.ByteString.Lazy qualified as LazyByteString
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Text.Lazy qualified as LazyText
 import Data.UUID qualified as UUID
 import Data.UUID.V4 qualified as UUID.V4
+import Database.MongoDB.Query qualified as MQuery
 import Database.Redis qualified as Redis
 import Env qualified
 import Network.HTTP.Types (status400, status500)
@@ -74,41 +80,48 @@ withAuth handler =
 authorize :: ActionT LazyText.Text ActionM ()
 authorize = do
     let logger = Action.createLogger "Action.Auth.authorize"
+
+    let parseBody :: LazyByteString.ByteString -> Either String AuthorizeRequest
+        parseBody = Aeson.eitherDecode
+
     logger Logger.LevelDebug "Attempting to authorize user"
 
-    redisConn <- asks Env.redisConn
+    reqBody <-
+        ScottyT.body
+            >>= Action.withError
+                logger
+                ( \err ->
+                    AppError
+                        { log = Just $ "Failed to parse request body: " <> Text.pack err
+                        , response = "Invalid request body"
+                        , status = status400
+                        }
+                )
+                . parseBody
 
     clientToken <- UUID.toText <$> liftIO UUID.V4.nextRandom
     authToken <- UUID.toText <$> liftIO UUID.V4.nextRandom
 
-    storeTokenResult <-
-        liftIO . Redis.runRedis redisConn $
-            Redis.set (Text.encodeUtf8 clientToken) (Text.encodeUtf8 authToken)
+    _ <-
+        Action.withRedisAction
+            ( Redis.set (Text.encodeUtf8 clientToken) (Text.encodeUtf8 authToken)
                 >>= const (Redis.expire (Text.encodeUtf8 clientToken) 3600)
-
-    void $
-        Action.withError
-            logger
-            ( \err ->
-                AppError
-                    { log = Just $ "Failed to store auth token in Redis: " <> show err
-                    , response = "Internal server error"
-                    , status = status500
-                    }
             )
-            storeTokenResult
+            >>= Action.withError
+                logger
+                ( \err ->
+                    AppError
+                        { log = Just $ "Failed to store auth token in Redis: " <> show err
+                        , response = "Internal server error"
+                        , status = status500
+                        }
+                )
+
+    _ <- getOrCreateProfile reqBody.userId
 
     Action.Cookie.setCookie authCookieName clientToken
 
-    ScottyT.json $ CheckAuthResponse True
-
-newtype CheckAuthResponse = CheckAuthResponse {authorized :: Bool}
-
-instance ToJSON CheckAuthResponse where
-    toJSON res =
-        Aeson.object
-            [ ("authorized", Aeson.toJSON $ authorized res)
-            ]
+    ScottyT.json $ AuthorizeResponse reqBody.userId True
 
 checkAuth :: ActionT LazyText.Text ActionM ()
 checkAuth = do
@@ -138,7 +151,33 @@ checkAuth = do
                             }
                     )
                     authTokenQuery
-            ScottyT.json $ CheckAuthResponse{authorized = isJust authTokenResult}
+            ScottyT.json $ CheckAuthResponse (isJust authTokenResult)
         Nothing -> do
             logger Logger.LevelDebug "User doesn't have auth token, verified that they are not authorized"
-            ScottyT.json $ CheckAuthResponse{authorized = False}
+            ScottyT.json $ CheckAuthResponse False
+
+getOrCreateProfile :: Text -> ActionT LazyText.Text ActionM ()
+getOrCreateProfile userId = do
+    let logger = Action.createLogger "Action.Auth.getOrCreateProfile"
+    _ <-
+        Action.withMongoAction
+            ( MQuery.upsert
+                ( MQuery.select
+                    [ "userId" := Bson.String userId
+                    ]
+                    "users"
+                )
+                [ "userId" := Bson.String userId
+                ]
+            )
+            >>= Action.withError
+                logger
+                ( \err ->
+                    AppError
+                        { log = Just $ "Failed to get or create user profile: " <> show err
+                        , response = "Internal server error"
+                        , status = status500
+                        }
+                )
+
+    pure ()

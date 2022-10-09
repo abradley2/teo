@@ -4,15 +4,30 @@ import Css
 
 
 type alias Theme =
-    { bodyBackground : Css.Color
-    , bodySecondaryBackground : Css.Color
-    , bodyForeground : Css.Color
-    , bodySecondaryForeground : Css.Color
-    , bodyForegroundBorder : Css.Color
-    , bodySecondaryForegroundBorder : Css.Color
+    { -- body represents base page-level items
+      bodyBackground : Css.Color
     , bodyFont : Css.Color
+    , bodySecondaryBackground : Css.Color
+
+    -- the body foreground represents things like opening up menus,
+    -- cards, and sidebars
+    -- that sit just above the main body content
+    , bodyForeground : Css.Color
     , bodyForegroundFont : Css.Color
+    , bodyForegroundBorder : Css.Color
+
+    -- the body secondary foreground represents things that may sit
+    -- in front of the application, like modals, toasts, and notifications
+    , bodySecondaryForeground : Css.Color
     , bodySecondaryForegroundFont : Css.Color
+    , bodySecondaryForegroundBorder : Css.Color
+
+    -- primary action represents things like a "submit button"
+    , primaryActionBackground : Css.Color
+    , primaryActionFont : Css.Color
+
+    -- widget focus outline should contrast well against all body backgrounds
+    , widgetFocusOutline : Css.Color
     }
 
 
@@ -27,4 +42,7 @@ darkTheme =
     , bodyFont = Css.hex "#7a8ea2"
     , bodyForegroundFont = Css.hex "#8a9fb4"
     , bodySecondaryForegroundFont = Css.hex "#d0d9e1"
+    , primaryActionBackground = Css.hex "#1e88e5"
+    , primaryActionFont = Css.hex "#ffffff"
+    , widgetFocusOutline = Css.hex "#f5f7fa"
     }

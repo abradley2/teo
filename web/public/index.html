@@ -48,13 +48,6 @@
                     app.ports.linkClicked.send(window.location.href)
                 })
             })
-
-            app.ports.pushUrl.subscribe(function (url) {
-                window.history.pushUrl(null, document.title, url)
-                requestAnimationFrame(function () {
-                    app.ports.linkClicked.send(window.location.href)
-                })
-            })
         })
 
         document.addEventListener('click', function (e) {

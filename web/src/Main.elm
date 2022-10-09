@@ -1,4 +1,4 @@
-module Main exposing (Effect(..), Flags, Model, Msg(..), Page(..), checkAuthResponseDecoder, checkAuthUrl, init, initWithFlags, main, update, view)
+module Main exposing (Effect(..), Flags, Model, Msg(..), Page(..), checkAuthResponseDecoder, checkAuthUrl, initWithFlags, main, update, view)
 
 import AppAction exposing (AppAction, Notification)
 import Browser
@@ -156,6 +156,7 @@ initWithFlags flags =
 init : Value -> ( Result Error Model, Effect )
 init flagsJson =
     let
+        initResult : Result Error ( Model, Effect )
         initResult =
             Decode.decodeValue flagsDecoder flagsJson
                 |> Result.map initWithFlags
@@ -171,6 +172,7 @@ init flagsJson =
 withRoute : Route -> ( Model, Effect ) -> ( Model, Effect )
 withRoute route ( model, effect ) =
     let
+        appendEffect : Effect -> Effect
         appendEffect newEffect =
             EffectBatch [ effect, newEffect ]
 
@@ -199,6 +201,7 @@ withRoute route ( model, effect ) =
 withAppAction : Maybe AppAction -> ( Model, Effect ) -> ( Model, Effect )
 withAppAction action ( model, effect ) =
     let
+        appendEffect : Effect -> Effect
         appendEffect newEffect =
             EffectBatch [ effect, newEffect ]
 
@@ -210,9 +213,6 @@ withAppAction action ( model, effect ) =
                       }
                     , Nothing
                     )
-
-                Just (AppAction.PushUrl url) ->
-                    ( model, Just <| EffectPushUrl url )
 
                 Just (AppAction.ReplaceUrl url) ->
                     ( model, Just <| EffectReplaceUrl url )
@@ -228,13 +228,6 @@ withAppAction action ( model, effect ) =
 
                 Just (AppAction.RequestData k) ->
                     ( model, Just (EffectRequestData k) )
-
-                Just (AppAction.Batch actions) ->
-                    List.foldr
-                        withAppAction
-                        ( model, EffectNone )
-                        (List.map Just actions)
-                        |> Tuple.mapSecond Just
 
                 Just AppAction.None ->
                     ( model, Nothing )
@@ -319,9 +312,8 @@ subscriptions model =
     Sub.batch
         [ Ports.linkClicked (Routes.parseUrl >> RouteChanged)
         , case model.page of
-            Login page ->
-                Login.subscriptions page
-                    |> Sub.map GotLoginMsg
+            Login _ ->
+                Sub.none
 
             Dashboard page ->
                 Dashboard.subscriptions page
@@ -337,7 +329,7 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
-    Layout.view GotLayoutMsg model.shared model.layout <|
+    Layout.view GotLayoutMsg model.notification model.shared model.layout <|
         case model.page of
             Login page ->
                 Login.view model.shared page

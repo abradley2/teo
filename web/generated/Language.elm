@@ -25,7 +25,20 @@ defaultLanguage =
                         [ ( "button prompt"
                           , I18Next.string "Click here to login"
                           )
+                        , ( "login failed message"
+                          , I18Next.string "Login failed. Please try again."
+                          )
+                        , ( "user id input generic error"
+                          , I18Next.string "Failed to login"
+                          )
+                        , ( "user id input label"
+                          , I18Next.string "Enter a (completely fake) user ID"
+                          )
                         ]
+                  )
+                , ( "page not found message"
+                  , I18Next.string
+                        "Sorry, the page you are looking for doesn't exist"
                   )
                 ]
           )

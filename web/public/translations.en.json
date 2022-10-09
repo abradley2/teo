@@ -1,9 +1,13 @@
 {
     "check authorization error": "There was an error when checking your user authorization.",
+    "page not found message": "Sorry, the page you are looking for doesn't exist",
     "dashboard": {
         "greeting": "Hello, {{name}}"
     },
     "login": {
-        "button prompt": "Click here to login"
+        "button prompt": "Click here to login",
+        "login failed message": "Login failed. Please try again.",
+        "user id input generic error": "Failed to login",
+        "user id input label": "Enter a (completely fake) user ID"
     }
 }

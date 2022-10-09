@@ -1,5 +1,6 @@
-module Action (AppError (..), ActionM, withError, runHandler, handleError, createLogger, throwError) where
+module Action (AppError (..), ActionM, withError, runHandler, handleError, createLogger, throwError, withMongoAction, withRedisAction) where
 
+import Control.Monad.Catch (handle)
 import Control.Monad.Logger (LoggingT (LoggingT))
 import Control.Monad.Logger qualified as Logger
 import Data.Aeson qualified as Aeson
@@ -7,6 +8,8 @@ import Data.ByteString.Lazy qualified as LBS
 import Data.Text.Encoding qualified as Text
 import Data.Text.Lazy qualified as LazyText
 import Data.UUID.V4 qualified as UUID.V4
+import Database.MongoDB qualified as MongoDb
+import Database.Redis qualified as Redis
 import Env (Env)
 import Env qualified
 import Network.HTTP.Types (Status, status500)
@@ -54,6 +57,19 @@ withError logger toErr e = do
             pure ()
 
     lift . ExceptT $ pure result
+
+withRedisAction :: Redis.Redis a -> ActionT LazyText.Text ActionM a
+withRedisAction action = do
+    redisConn <- asks Env.redisConn
+    liftIO . Redis.runRedis redisConn $ action
+
+withMongoAction :: MongoDb.Action (ActionT LazyText.Text ActionM) a -> ActionT LazyText.Text ActionM (Either MongoDb.Failure a)
+withMongoAction action = do
+    pipe <- asks Env.mongoPipe
+    handle catch $ Right <$> MongoDb.access pipe MongoDb.UnconfirmedWrites "public_db" action
+  where
+    catch :: MongoDb.Failure -> ActionT LazyText.Text ActionM (Either MongoDb.Failure a)
+    catch = pure . Left
 
 throwError :: Logger -> AppError -> ActionT LazyText.Text ActionM a
 throwError logger appError = withError logger (const appError) (Left appError)

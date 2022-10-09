@@ -11,8 +11,10 @@ import Shared
 import SimulatedEffect.Cmd as SimulatedCmd
 import SimulatedEffect.Http as SimulatedHttp
 import Test exposing (Test, describe, test)
+import Test.Html.Selector as Selector
 import Test.Http
 import TestApp exposing (testProgram)
+import Translations
 import Translations.Login
 import Url.Builder
 
@@ -46,7 +48,7 @@ suite =
                     |> ProgramTest.simulateHttpOk
                         "POST"
                         Login.loginUrl
-                        """{"authorized": true}"""
+                        """{"authorized": true, "userId": "Test user"}"""
                     |> ProgramTest.expectBrowserUrl
                         (Expect.equal <| Url.Builder.crossOrigin TestApp.baseUrl [] [])
         , test "An error is displayed if the initial check auth request fails" <|
@@ -59,5 +61,25 @@ suite =
                         "GET"
                         Main.checkAuthUrl
                         Test.Http.networkError
-                    |> always Expect.pass
+                    |> ProgramTest.expectViewHas
+                        [ Selector.text (Translations.checkAuthorizationError [ defaultLanguage ])
+                        ]
+        , test "An error is displayed if the request after a user tries to login fails" <|
+            \_ ->
+                testProgram
+                    |> TestApp.withBaseUrl
+                    |> TestApp.withSimulatedEffects (always Nothing)
+                    |> TestApp.startWithFlags identity
+                    |> ProgramTest.simulateHttpOk
+                        "GET"
+                        Main.checkAuthUrl
+                        """{"authorized": false}"""
+                    |> ProgramTest.clickButton (Translations.Login.buttonPrompt [ defaultLanguage ])
+                    |> ProgramTest.simulateHttpResponse
+                        "POST"
+                        Login.loginUrl
+                        Test.Http.networkError
+                    |> ProgramTest.expectViewHas
+                        [ Selector.text (Translations.Login.loginFailedMessage [ defaultLanguage ])
+                        ]
         ]

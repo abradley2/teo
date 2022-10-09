@@ -37,6 +37,9 @@ dependencies:
 - uuid
 - cookie
 - text
+- bson
+- exceptions
+- async
 
 ghc-options:
 - -Wall

@@ -1,11 +1,13 @@
 module Layout exposing (Model, Msg(..), init, update, view)
 
-import Css
+import AppAction exposing (Notification)
+import Css exposing (Style)
 import Css.Transitions as Transitions
 import Html.Styled as H exposing (Html)
 import Html.Styled.Attributes as A
 import Html.Styled.Events as E
 import Shared exposing (Shared)
+import Theme exposing (Theme)
 
 
 type Msg
@@ -30,9 +32,10 @@ update msg model =
             { model | menuOpen = not model.menuOpen }
 
 
-view : (Msg -> msg) -> Shared -> Model -> Html msg -> Html msg
-view toMsg shared model body =
+view : (Msg -> msg) -> Maybe ( Notification, String ) -> Shared -> Model -> Html msg -> Html msg
+view toMsg notification shared model body =
     let
+        theme : Theme
         theme =
             shared.theme
     in
@@ -59,22 +62,27 @@ view toMsg shared model body =
                 , Css.border3 (Css.px 1) Css.solid theme.bodySecondaryForegroundBorder
                 ]
             ]
-            [ H.div
-                [ A.css
-                    [ Css.position Css.relative
-                    , Css.padding2 (Css.rem 2) (Css.rem 1)
-                    ]
-                ]
-                [ H.text "Oh my something terrible has happened- or at least something noteworth"
-                , H.button
-                    [ A.css
-                        [ Css.top (Css.rem 0.25)
-                        , Css.right (Css.rem 0.25)
-                        , Css.position Css.absolute
+            [ case notification of
+                Just ( _, notificationMsg ) ->
+                    H.div
+                        [ A.css
+                            [ Css.position Css.relative
+                            , Css.padding2 (Css.rem 2) (Css.rem 1)
+                            ]
                         ]
-                    ]
-                    [ H.text "X" ]
-                ]
+                        [ H.text notificationMsg
+                        , H.button
+                            [ A.css
+                                [ Css.top (Css.rem 0.25)
+                                , Css.right (Css.rem 0.25)
+                                , Css.position Css.absolute
+                                ]
+                            ]
+                            [ H.text "X" ]
+                        ]
+
+                Nothing ->
+                    H.text ""
             ]
         , H.div
             [ A.css
@@ -86,6 +94,7 @@ view toMsg shared model body =
             ]
             [ H.div
                 [ let
+                    cssAttrs : List Style
                     cssAttrs =
                         if model.menuOpen then
                             [ Css.minWidth (Css.rem 16)
@@ -93,8 +102,8 @@ view toMsg shared model body =
                             ]
 
                         else
-                            [ Css.minWidth (Css.rem 6)
-                            , Css.maxWidth (Css.rem 6)
+                            [ Css.minWidth (Css.rem 5)
+                            , Css.maxWidth (Css.rem 5)
                             ]
                   in
                   A.css <|
@@ -111,9 +120,11 @@ view toMsg shared model body =
                 ]
             , H.div
                 [ A.css
-                    [ Css.minWidth <| Css.calc (Css.pct 100) Css.minus (Css.rem 8)
-                    , Css.maxWidth <| Css.calc (Css.pct 100) Css.minus (Css.rem 8)
+                    [ Css.minWidth <| Css.calc (Css.pct 100) Css.minus (Css.rem 5)
+                    , Css.maxWidth <| Css.calc (Css.pct 100) Css.minus (Css.rem 5)
                     , Css.overflow Css.auto
+                    , Css.boxSizing Css.borderBox
+                    , Css.padding (Css.rem 1)
                     ]
                 ]
                 [ body
@@ -123,7 +134,7 @@ view toMsg shared model body =
 
 
 sidebar : Shared -> Html Msg
-sidebar shared =
+sidebar _ =
     H.div
         [ E.onClick ToggleMenu
         , A.css

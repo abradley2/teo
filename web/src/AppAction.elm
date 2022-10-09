@@ -6,14 +6,12 @@ import Json.Encode exposing (Value)
 
 type AppAction
     = None
-    | PushUrl String
     | ReplaceUrl String
     | Logout
     | CancelRequest String
     | RequestData String
     | StoreData String Value
     | ShowNotification Notification String
-    | Batch (List AppAction)
 
 
 cancelRequest : HttpData a -> AppAction
