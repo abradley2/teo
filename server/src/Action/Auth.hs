@@ -1,6 +1,6 @@
 module Action.Auth (withAuth, authorize, AuthToken (..), checkAuth) where
 
-import Action (ActionM, AppError (..))
+import Action (Action, AppError (..))
 import Action qualified
 import Action.Auth.AuthorizeRequest (AuthorizeRequest (..))
 import Action.Auth.AuthorizeResponse (AuthorizeResponse (..))
@@ -30,7 +30,7 @@ newtype AuthToken = AuthToken Text
 authCookieName :: Text
 authCookieName = "auth"
 
-withAuth :: (AuthToken -> ActionT LazyText.Text ActionM a) -> ActionT LazyText.Text ActionM a
+withAuth :: (AuthToken -> ActionT LazyText.Text Action a) -> ActionT LazyText.Text Action a
 withAuth handler =
     let logger = Action.createLogger "Action.Auth.withAuth"
      in do
@@ -78,7 +78,7 @@ withAuth handler =
                 (handler . AuthToken . Text.decodeUtf8)
                 authToken
 
-authorize :: ActionT LazyText.Text ActionM ()
+authorize :: ActionT LazyText.Text Action ()
 authorize = do
     let logger = Action.createLogger "Action.Auth.authorize"
 
@@ -126,7 +126,7 @@ authorize = do
 
     ScottyT.json $ AuthorizeResponse reqBody.userId True
 
-checkAuth :: ActionT LazyText.Text ActionM ()
+checkAuth :: ActionT LazyText.Text Action ()
 checkAuth = do
     let logger = Action.createLogger "Action.Auth.checkAuth"
 
@@ -159,7 +159,7 @@ checkAuth = do
             logger Logger.LevelDebug "User doesn't have auth token, verified that they are not authorized"
             ScottyT.json $ CheckAuthResponse False
 
-getOrCreateProfile :: Text -> ActionT LazyText.Text ActionM Int
+getOrCreateProfile :: Text -> Action ()
 getOrCreateProfile userId = do
     let logger = Action.createLogger "Action.Auth.getOrCreateProfile"
     _ <-

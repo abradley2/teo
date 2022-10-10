@@ -2,7 +2,7 @@ module App (
     server,
 ) where
 
-import Action (ActionM)
+import Action (Action)
 import Action qualified
 import Action.Auth qualified
 import Action.Hello qualified
@@ -34,7 +34,7 @@ server = do
     env <- runExceptT Env.getEnv
     either putStrLn (\e -> application e >>= run (Env.port e)) env
 
-handler :: ScottyT LazyText.Text ActionM ()
+handler :: ScottyT LazyText.Text Action ()
 handler = do
     ScottyT.get "/api/hello" Action.Hello.sayHello
     ScottyT.post "/api/login" Action.Auth.authorize
@@ -44,4 +44,4 @@ application :: Env -> IO Application
 application env =
     do
         putStrLn $ "Running server on port " <> show (port env)
-        staticMiddleware <$> ScottyT.scottyAppT (Action.runHandler env) handler
+        staticMiddleware <$> ScottyT.scottyAppT (Action.runHandlerAction env) handler
