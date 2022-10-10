@@ -120,7 +120,7 @@ authorize = do
 
     _ <- liftIO $ Async.withAsync (pure $ getOrCreateProfile reqBody.userId) $ \a1 -> do
         res <- Async.wait a1
-        pure ()
+        pure res
 
     Action.Cookie.setCookie authCookieName clientToken
 

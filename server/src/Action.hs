@@ -42,7 +42,11 @@ type Logger = Logger.LogLevel -> Text -> ActionT LazyText.Text ActionM ()
 createLogger :: Text -> Logger.LogLevel -> Text -> ActionT LazyText.Text ActionM ()
 createLogger source level logStr = do
     clientId <- fmap LazyText.toStrict <$> ScottyT.header "X-Client-Id"
-    lift . lift $ LoggingT $ \f -> ReaderT $ \env ->
+    lift $ createLogger' clientId source level logStr
+
+createLogger' :: Maybe Text -> Text -> Logger.LogLevel -> Text -> ActionM ()
+createLogger' clientId source level logStr = do
+    lift $ LoggingT $ \f -> ReaderT $ \env ->
         let logMsg = LogMsg clientId env.requestId logStr
          in f Logger.defaultLoc source level $ show $ Text.decodeUtf8 $ LBS.toStrict $ Aeson.encode logMsg
 
@@ -82,8 +86,8 @@ withMongoAction' action = do
 throwError :: Logger -> AppError -> ActionT LazyText.Text ActionM a
 throwError logger appError = withError logger (const appError) (Left appError)
 
-runActionM :: Env -> ActionM a -> IO (Either AppError a)
-runActionM env action = runReaderT (Logger.runStdoutLoggingT (runExceptT action)) env
+unliftAction :: Env -> ActionM a -> IO (Either AppError a)
+unliftAction env action = runReaderT (Logger.runStdoutLoggingT (runExceptT action)) env
 
 runHandler :: Env -> ActionM Response -> IO Response
 runHandler env handler = do
