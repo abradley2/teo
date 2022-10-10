@@ -6,6 +6,7 @@ import Action.Auth.AuthorizeRequest (AuthorizeRequest (..))
 import Action.Auth.AuthorizeResponse (AuthorizeResponse (..))
 import Action.Auth.CheckAuthResponse (CheckAuthResponse (..))
 import Action.Cookie qualified
+import Control.Concurrent.Async qualified as Async
 import Control.Monad.Logger qualified as Logger
 import Data.Aeson qualified as Aeson
 import Data.Bson (Field ((:=)))
@@ -117,7 +118,9 @@ authorize = do
                         }
                 )
 
-    _ <- getOrCreateProfile reqBody.userId
+    _ <- liftIO $ Async.withAsync (pure $ getOrCreateProfile reqBody.userId) $ \a1 -> do
+        res <- Async.wait a1
+        pure ()
 
     Action.Cookie.setCookie authCookieName clientToken
 
@@ -156,7 +159,7 @@ checkAuth = do
             logger Logger.LevelDebug "User doesn't have auth token, verified that they are not authorized"
             ScottyT.json $ CheckAuthResponse False
 
-getOrCreateProfile :: Text -> ActionT LazyText.Text ActionM ()
+getOrCreateProfile :: Text -> ActionT LazyText.Text ActionM Int
 getOrCreateProfile userId = do
     let logger = Action.createLogger "Action.Auth.getOrCreateProfile"
     _ <-
@@ -180,4 +183,6 @@ getOrCreateProfile userId = do
                         }
                 )
 
-    pure ()
+    logger Logger.LevelDebug "Successfully retrieved or created user profile"
+
+    pure 1

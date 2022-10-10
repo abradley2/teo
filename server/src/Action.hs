@@ -71,8 +71,19 @@ withMongoAction action = do
     catch :: MongoDb.Failure -> ActionT LazyText.Text ActionM (Either MongoDb.Failure a)
     catch = pure . Left
 
+withMongoAction' :: MongoDb.Action ActionM a -> ActionM (Either MongoDb.Failure a)
+withMongoAction' action = do
+    pipe <- asks Env.mongoPipe
+    handle catch $ Right <$> MongoDb.access pipe MongoDb.UnconfirmedWrites "public_db" action
+  where
+    catch :: MongoDb.Failure -> ActionM (Either MongoDb.Failure a)
+    catch = pure . Left
+
 throwError :: Logger -> AppError -> ActionT LazyText.Text ActionM a
 throwError logger appError = withError logger (const appError) (Left appError)
+
+runActionM :: Env -> ActionM a -> IO (Either AppError a)
+runActionM env action = runReaderT (Logger.runStdoutLoggingT (runExceptT action)) env
 
 runHandler :: Env -> ActionM Response -> IO Response
 runHandler env handler = do
