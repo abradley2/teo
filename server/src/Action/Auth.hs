@@ -1,13 +1,12 @@
 module Action.Auth (withAuth, authorize, AuthToken (..), checkAuth) where
 
-import Action (Action, AppError (..))
+import Action (Action, AppError (..), LoggingContext)
 import Action qualified
 import Action.Auth.AuthorizeRequest (AuthorizeRequest (..))
 import Action.Auth.AuthorizeResponse (AuthorizeResponse (..))
 import Action.Auth.CheckAuthResponse (CheckAuthResponse (..))
 import Action.Cookie qualified
 import Control.Concurrent.Async qualified as Async
-import Control.Monad.Logger qualified as Logger
 import Data.Aeson qualified as Aeson
 import Data.Bson (Field ((:=)))
 import Data.Bson qualified as Bson
@@ -32,60 +31,68 @@ authCookieName = "auth"
 
 withAuth :: (AuthToken -> ActionT LazyText.Text Action a) -> ActionT LazyText.Text Action a
 withAuth handler =
-    let logger = Action.createLogger "Action.Auth.withAuth"
-     in do
-            redisConn <- asks Env.redisConn
-            logger Logger.LevelDebug "Invoking handler with auth"
-            clientToken <-
-                Action.Cookie.readCookie authCookieName
-                    >>= ( Action.withError
-                            logger
-                            ( const
-                                ( AppError
-                                    { log = Nothing
-                                    , response = "User is not authorized"
-                                    , status = status400
-                                    }
-                                )
+    do
+        logger <- Action.createLogger "Action.Auth.withAuth"
+
+        redisConn <- asks Env.redisConn
+
+        Action.logDebug logger "Invoking handler with auth"
+
+        clientToken <-
+            Action.Cookie.readCookie authCookieName
+                >>= ( Action.withError
+                        logger
+                        ( const
+                            ( AppError
+                                { log = Nothing
+                                , response = "User is not authorized"
+                                , status = status400
+                                }
                             )
-                            . maybeToRight (Text.pack "")
                         )
-            logger Logger.LevelDebug "Retrieved auth cookie"
-            authTokenResult <-
-                liftIO
-                    . Redis.runRedis redisConn
-                    . Redis.get
-                    $ Text.encodeUtf8 clientToken
-            authToken <-
-                Action.withError
-                    logger
-                    ( \err ->
-                        AppError
-                            { log = Just $ "Failed to retrieve auth token from Redis: " <> show err
-                            , response = "Internal server error"
-                            , status = status500
-                            }
+                        . maybeToRight (Text.pack "")
                     )
-                    authTokenResult
-            maybe
-                ( Action.throwError logger $
+
+        Action.logDebug logger "Retrieved auth cookie"
+
+        authTokenResult <-
+            liftIO
+                . Redis.runRedis redisConn
+                . Redis.get
+                $ Text.encodeUtf8 clientToken
+        authToken <-
+            Action.withError
+                logger
+                ( \err ->
                     AppError
-                        { log = Nothing
-                        , response = "User token not found"
-                        , status = status400
+                        { log = Just $ "Failed to retrieve auth token from Redis: " <> show err
+                        , response = "Internal server error"
+                        , status = status500
                         }
                 )
-                (handler . AuthToken . Text.decodeUtf8)
-                authToken
+                authTokenResult
+        maybe
+            ( Action.throwError logger $
+                AppError
+                    { log = Nothing
+                    , response = "User token not found"
+                    , status = status400
+                    }
+            )
+            (handler . AuthToken . Text.decodeUtf8)
+            authToken
 
 authorize :: ActionT LazyText.Text Action ()
 authorize = do
-    let logger = Action.createLogger "Action.Auth.authorize"
+    env <- ask
+    ctx <- Action.getLoggingContext
+
+    let logger = Action.createLogger' "Action.Auth.authorize" ctx
 
     let parseBody :: LazyByteString.ByteString -> Either String AuthorizeRequest
         parseBody = Aeson.eitherDecode
 
-    logger Logger.LevelDebug "Attempting to authorize user"
+    Action.logDebug logger "Attempting to authorize user"
 
     reqBody <-
         ScottyT.body
@@ -103,24 +110,29 @@ authorize = do
     clientToken <- UUID.toText <$> liftIO UUID.V4.nextRandom
     authToken <- UUID.toText <$> liftIO UUID.V4.nextRandom
 
-    _ <-
-        Action.withRedisAction
-            ( Redis.set (Text.encodeUtf8 clientToken) (Text.encodeUtf8 authToken)
-                >>= const (Redis.expire (Text.encodeUtf8 clientToken) 3600)
-            )
-            >>= Action.withError
-                logger
-                ( \err ->
-                    AppError
-                        { log = Just $ "Failed to store auth token in Redis: " <> show err
-                        , response = "Internal server error"
-                        , status = status500
-                        }
+    let storeTokenInRedis =
+            Action.withRedisAction'
+                ( Redis.set (Text.encodeUtf8 clientToken) (Text.encodeUtf8 authToken)
+                    >>= const (Redis.expire (Text.encodeUtf8 clientToken) 3600)
                 )
+                >>= Action.withError'
+                    logger
+                    ( \err ->
+                        AppError
+                            { log = Just $ "Failed to store auth token in Redis: " <> show err
+                            , response = "Internal server error"
+                            , status = status500
+                            }
+                    )
 
-    _ <- liftIO $ Async.withAsync (pure $ getOrCreateProfile reqBody.userId) $ \a1 -> do
-        res <- Async.wait a1
-        pure res
+    (res1, res2) <- liftIO $ Async.withAsync (Action.runAction env $ getOrCreateProfile ctx reqBody.userId) $ \a1 -> do
+        Async.withAsync (Action.runAction env storeTokenInRedis) $ \a2 -> do
+            Async.waitBoth a1 a2
+
+    case (res1, res2) of
+        (Left err, _) -> Action.throwError logger err
+        (_, Left err) -> Action.throwError logger err
+        _ -> pure ()
 
     Action.Cookie.setCookie authCookieName clientToken
 
@@ -128,16 +140,17 @@ authorize = do
 
 checkAuth :: ActionT LazyText.Text Action ()
 checkAuth = do
-    let logger = Action.createLogger "Action.Auth.checkAuth"
+    logger <- Action.createLogger "Action.Auth.checkAuth"
 
-    logger Logger.LevelDebug "Checking auth status"
+    Action.logDebug logger "Checking auth status"
+
     redisConn <- asks Env.redisConn
 
     authCookie <- Action.Cookie.readCookie authCookieName
 
     case authCookie of
         Just clientToken -> do
-            logger Logger.LevelDebug "User has auth cookie, querying for token from redis"
+            Action.logDebug logger "User has auth cookie, querying for token from redis"
             authTokenQuery <-
                 liftIO
                     . Redis.runRedis redisConn
@@ -156,14 +169,17 @@ checkAuth = do
                     authTokenQuery
             ScottyT.json $ CheckAuthResponse (isJust authTokenResult)
         Nothing -> do
-            logger Logger.LevelDebug "User doesn't have auth token, verified that they are not authorized"
+            Action.logDebug logger "User doesn't have auth token, verified that they are not authorized"
             ScottyT.json $ CheckAuthResponse False
 
-getOrCreateProfile :: Text -> Action ()
-getOrCreateProfile userId = do
-    let logger = Action.createLogger "Action.Auth.getOrCreateProfile"
+getOrCreateProfile :: LoggingContext -> Text -> Action ()
+getOrCreateProfile ctx userId = do
+    let logger = Action.createLogger' "Action.Auth.getOrCreateProfile" ctx
+
+    Action.logDebug' logger "Updating or creating user profile"
+
     _ <-
-        Action.withMongoAction
+        Action.withMongoAction'
             ( MQuery.upsert
                 ( MQuery.select
                     [ "userId" := Bson.String userId
@@ -173,7 +189,7 @@ getOrCreateProfile userId = do
                 [ "userId" := Bson.String userId
                 ]
             )
-            >>= Action.withError
+            >>= Action.withError'
                 logger
                 ( \err ->
                     AppError
@@ -183,6 +199,6 @@ getOrCreateProfile userId = do
                         }
                 )
 
-    logger Logger.LevelDebug "Successfully retrieved or created user profile"
+    Action.logDebug' logger "Successfully updated or created user profile"
 
-    pure 1
+    pure ()

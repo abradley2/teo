@@ -13,7 +13,7 @@ perform effect =
         Login.EffectNone ->
             SimulatedCmd.none
 
-        Login.EffectLogin (ClientId clientId) tracker ->
+        Login.EffectLogin (ClientId clientId) tracker loginRequest ->
             SimulatedHttp.request
                 { method = "POST"
                 , url = Login.loginUrl
@@ -21,7 +21,7 @@ perform effect =
                     [ SimulatedHttp.header "X-Client-Id" clientId
                     ]
                 , tracker = tracker
-                , body = SimulatedHttp.emptyBody
+                , body = SimulatedHttp.jsonBody <| Login.encodeLoginRequest loginRequest
                 , expect = SimulatedHttp.expectJson Login.ReceivedLoginResponse Login.loginResponseDecoder
                 , timeout = Just 5000
                 }
