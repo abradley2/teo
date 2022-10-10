@@ -1,15 +1,15 @@
-module Action.Auth (withAuth, authorize, AuthToken (..), checkAuth) where
+module Action.Auth (withAuth, authorize, checkAuth) where
 
 import Action (Action, AppError (..), LoggingContext)
 import Action qualified
 import Action.Auth.AuthorizeRequest (AuthorizeRequest (..))
 import Action.Auth.AuthorizeResponse (AuthorizeResponse (..))
 import Action.Auth.CheckAuthResponse (CheckAuthResponse (..))
+import Action.Auth.Documents.User (User)
+import Action.Auth.Documents.User qualified as Documents.User
 import Action.Cookie qualified
 import Control.Concurrent.Async qualified as Async
 import Data.Aeson qualified as Aeson
-import Data.Bson (Field ((:=)))
-import Data.Bson qualified as Bson
 import Data.ByteString.Lazy qualified as LazyByteString
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
@@ -19,22 +19,18 @@ import Data.UUID.V4 qualified as UUID.V4
 import Database.MongoDB.Query qualified as MQuery
 import Database.Redis qualified as Redis
 import Env qualified
-import Network.HTTP.Types (status400, status500)
+import Network.HTTP.Types (status400, status401, status500)
 import Relude
 import Web.Scotty.Trans (ActionT)
 import Web.Scotty.Trans qualified as ScottyT
 
-newtype AuthToken = AuthToken Text
-
 authCookieName :: Text
 authCookieName = "auth"
 
-withAuth :: (AuthToken -> ActionT LazyText.Text Action a) -> ActionT LazyText.Text Action a
+withAuth :: (User -> ActionT LazyText.Text Action a) -> ActionT LazyText.Text Action a
 withAuth handler =
     do
         logger <- Action.createLogger "Action.Auth.withAuth"
-
-        redisConn <- asks Env.redisConn
 
         Action.logDebug logger "Invoking handler with auth"
 
@@ -53,34 +49,76 @@ withAuth handler =
                         . maybeToRight (Text.pack "")
                     )
 
-        Action.logDebug logger "Retrieved auth cookie"
+        Action.logDebug logger "Retrieved auth cookie, checking for userId in redis"
 
-        authTokenResult <-
-            liftIO
-                . Redis.runRedis redisConn
-                . Redis.get
-                $ Text.encodeUtf8 clientToken
-        authToken <-
-            Action.withError
-                logger
-                ( \err ->
-                    AppError
-                        { log = Just $ "Failed to retrieve auth token from Redis: " <> show err
-                        , response = "Internal server error"
-                        , status = status500
-                        }
+        userId <-
+            Action.withRedisAction
+                ( Redis.get $ Text.encodeUtf8 clientToken
                 )
-                authTokenResult
-        maybe
-            ( Action.throwError logger $
-                AppError
-                    { log = Nothing
-                    , response = "User token not found"
-                    , status = status400
-                    }
-            )
-            (handler . AuthToken . Text.decodeUtf8)
-            authToken
+                >>= Action.withError
+                    logger
+                    ( \err ->
+                        AppError
+                            { log = Just $ "Failed to retrieve auth token from Redis: " <> show err
+                            , response = "Internal server error"
+                            , status = status500
+                            }
+                    )
+                >>= ( Action.withError
+                        logger
+                        ( const $
+                            AppError
+                                { log = Just "No auth token found in redis"
+                                , response = "Session not found, please login again"
+                                , status = status401
+                                }
+                        )
+                        . maybeToRight ()
+                    )
+
+        Action.logDebug logger "Retrieved userId from redis, retrieving user doc from mongo"
+
+        user <-
+            Action.withMongoAction
+                ( do
+                    MQuery.findOne $
+                        MQuery.select
+                            [ Documents.User.userIdField (Text.decodeUtf8 userId)
+                            ]
+                            Documents.User.collection
+                )
+                >>= Action.withError
+                    logger
+                    ( \err ->
+                        AppError
+                            { log = Just $ "Failed to retrieve user from Mongo: " <> show err
+                            , response = "Internal server error"
+                            , status = status500
+                            }
+                    )
+                >>= ( Action.withError
+                        logger
+                        ( const $
+                            AppError
+                                { log = Just "No user found in mongo"
+                                , response = "Session not found, please login again"
+                                , status = status401
+                                }
+                        )
+                        . maybeToRight ()
+                    )
+                >>= ( Action.withError
+                        logger
+                        ( \err ->
+                            AppError
+                                { log = Just $ "User doc found but failed to decode: " <> err
+                                , response = "Internal server error"
+                                , status = status500
+                                }
+                        )
+                        . Documents.User.decodeUser
+                    )
+        handler user
 
 authorize :: ActionT LazyText.Text Action ()
 authorize = do
@@ -108,11 +146,10 @@ authorize = do
                 . parseBody
 
     clientToken <- UUID.toText <$> liftIO UUID.V4.nextRandom
-    authToken <- UUID.toText <$> liftIO UUID.V4.nextRandom
 
     let storeTokenInRedis =
             Action.withRedisAction'
-                ( Redis.set (Text.encodeUtf8 clientToken) (Text.encodeUtf8 authToken)
+                ( Redis.set (Text.encodeUtf8 clientToken) (Text.encodeUtf8 reqBody.userId)
                     >>= const (Redis.expire (Text.encodeUtf8 clientToken) 3600)
                 )
                 >>= Action.withError'
@@ -182,11 +219,11 @@ getOrCreateProfile ctx userId = do
         Action.withMongoAction'
             ( MQuery.upsert
                 ( MQuery.select
-                    [ "userId" := Bson.String userId
+                    [ Documents.User.userIdField userId
                     ]
-                    "users"
+                    Documents.User.collection
                 )
-                [ "userId" := Bson.String userId
+                [ Documents.User.userIdField userId
                 ]
             )
             >>= Action.withError'

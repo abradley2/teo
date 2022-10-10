@@ -24,8 +24,9 @@ library
       Action.Auth.AuthorizeRequest
       Action.Auth.AuthorizeResponse
       Action.Auth.CheckAuthResponse
+      Action.Auth.Documents.User
       Action.Cookie
-      Action.Hello
+      Action.Event
       App
       Env
   other-modules:

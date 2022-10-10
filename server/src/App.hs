@@ -5,7 +5,7 @@ module App (
 import Action (Action)
 import Action qualified
 import Action.Auth qualified
-import Action.Hello qualified
+import Action.Event qualified
 import Data.Text.Lazy qualified as LazyText
 import Env (Env (..))
 import Env qualified
@@ -36,7 +36,7 @@ server = do
 
 handler :: ScottyT LazyText.Text Action ()
 handler = do
-    ScottyT.get "/api/hello" Action.Hello.sayHello
+    ScottyT.get "/api/events" (Action.Auth.withAuth Action.Event.listEvents)
     ScottyT.post "/api/login" Action.Auth.authorize
     ScottyT.get "/api/check-auth" Action.Auth.checkAuth
 
