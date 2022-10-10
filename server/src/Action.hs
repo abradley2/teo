@@ -1,4 +1,20 @@
-module Action (AppError (..), ActionM, withError, runHandler, handleError, createLogger, throwError, withMongoAction, withRedisAction) where
+module Action (
+    AppError (..),
+    ActionM,
+    withError,
+    runHandler,
+    getClientId,
+    handleError,
+    createLogger,
+    throwError,
+    withMongoAction,
+    withMongoAction',
+    withMongoActionIO,
+    withRedisAction,
+    withRedisAction',
+    withRedisActionIO,
+    unliftAction,
+) where
 
 import Control.Monad.Catch (handle)
 import Control.Monad.Logger (LoggingT (LoggingT))
@@ -39,9 +55,12 @@ type ActionM = ExceptT AppError (LoggingT (ReaderT Env IO))
 
 type Logger = Logger.LogLevel -> Text -> ActionT LazyText.Text ActionM ()
 
+getClientId :: ActionT LazyText.Text ActionM (Maybe Text)
+getClientId = fmap LazyText.toStrict <$> ScottyT.header "X-Client-Id"
+
 createLogger :: Text -> Logger.LogLevel -> Text -> ActionT LazyText.Text ActionM ()
 createLogger source level logStr = do
-    clientId <- fmap LazyText.toStrict <$> ScottyT.header "X-Client-Id"
+    clientId <- getClientId
     lift $ createLogger' clientId source level logStr
 
 createLogger' :: Maybe Text -> Text -> Logger.LogLevel -> Text -> ActionM ()
@@ -63,9 +82,15 @@ withError logger toErr e = do
     lift . ExceptT $ pure result
 
 withRedisAction :: Redis.Redis a -> ActionT LazyText.Text ActionM a
-withRedisAction action = do
+withRedisAction action = lift $ withRedisAction' action
+
+withRedisAction' :: Redis.Redis a -> ActionM a
+withRedisAction' action = do
     redisConn <- asks Env.redisConn
     liftIO . Redis.runRedis redisConn $ action
+
+withRedisActionIO :: Env -> Redis.Redis a -> IO (Either AppError a)
+withRedisActionIO env action = unliftAction env $ withRedisAction' action
 
 withMongoAction :: MongoDb.Action (ActionT LazyText.Text ActionM) a -> ActionT LazyText.Text ActionM (Either MongoDb.Failure a)
 withMongoAction action = do
@@ -82,6 +107,9 @@ withMongoAction' action = do
   where
     catch :: MongoDb.Failure -> ActionM (Either MongoDb.Failure a)
     catch = pure . Left
+
+withMongoActionIO :: Env -> MongoDb.Action ActionM a -> IO (Either AppError (Either MongoDb.Failure a))
+withMongoActionIO env action = unliftAction env $ withMongoAction' action
 
 throwError :: Logger -> AppError -> ActionT LazyText.Text ActionM a
 throwError logger appError = withError logger (const appError) (Left appError)
