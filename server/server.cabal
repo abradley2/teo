@@ -27,6 +27,9 @@ library
       Action.Auth.Documents.User
       Action.Cookie
       Action.Event
+      Action.Event.CreateEventRequest
+      Action.Event.Documents.CreateEvent
+      Action.Event.Documents.Event
       App
       Env
   other-modules:
@@ -45,6 +48,7 @@ library
       aeson
     , async
     , base >=4.7 && <5
+    , binary
     , bson
     , cookie
     , dotenv
@@ -76,6 +80,7 @@ executable server-exe
       aeson
     , async
     , base >=4.7 && <5
+    , binary
     , bson
     , cookie
     , dotenv
@@ -109,6 +114,7 @@ test-suite teo-test
       aeson
     , async
     , base >=4.7 && <5
+    , binary
     , bson
     , cookie
     , dotenv
