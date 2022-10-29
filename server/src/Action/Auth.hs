@@ -18,7 +18,6 @@ import Data.UUID qualified as UUID
 import Data.UUID.V4 qualified as UUID.V4
 import Database.MongoDB.Query qualified as MQuery
 import Database.Redis qualified as Redis
-import Env qualified
 import Network.HTTP.Types (status400, status401, status500)
 import Relude
 import Web.Scotty.Trans (ActionT)
@@ -79,7 +78,7 @@ withAuth handler =
         Action.logDebug logger "Retrieved userId from redis, retrieving user doc from mongo"
 
         user <-
-            Action.withMongoAction
+            Action.withMongoActionThrow
                 ( do
                     MQuery.findOne $
                         MQuery.select
@@ -87,15 +86,15 @@ withAuth handler =
                             ]
                             Documents.User.collection
                 )
-                >>= Action.withError
-                    logger
-                    ( \err ->
-                        AppError
-                            { log = Just $ "Failed to retrieve user from Mongo: " <> show err
-                            , response = "Internal server error"
-                            , status = status500
-                            }
-                    )
+                -- >>= Action.withError
+                --     logger
+                --     ( \err ->
+                --         AppError
+                --             { log = Just $ "Failed to retrieve user from Mongo: " <> show err
+                --             , response = "Internal server error"
+                --             , status = status500
+                --             }
+                --     )
                 >>= ( Action.withError
                         logger
                         ( const $
@@ -118,6 +117,9 @@ withAuth handler =
                         )
                         . Documents.User.decodeUser
                     )
+
+        Action.logDebug logger "Retrieved user doc from mongo, invoking handler with user"
+
         handler user
 
 authorize :: ActionT LazyText.Text Action ()
@@ -181,18 +183,16 @@ checkAuth = do
 
     Action.logDebug logger "Checking auth status"
 
-    redisConn <- asks Env.redisConn
-
     authCookie <- Action.Cookie.readCookie authCookieName
 
     case authCookie of
         Just clientToken -> do
             Action.logDebug logger "User has auth cookie, querying for token from redis"
             authTokenQuery <-
-                liftIO
-                    . Redis.runRedis redisConn
-                    . Redis.get
-                    $ Text.encodeUtf8 clientToken
+                Action.withRedisAction
+                    ( Redis.get $
+                        Text.encodeUtf8 clientToken
+                    )
             authTokenResult <-
                 Action.withError
                     logger
@@ -210,32 +210,27 @@ checkAuth = do
             ScottyT.json $ CheckAuthResponse False
 
 getOrCreateProfile :: LoggingContext -> Text -> Action ()
-getOrCreateProfile ctx userId = do
-    let logger = Action.createLogger' "Action.Auth.getOrCreateProfile" ctx
+getOrCreateProfile ctx userId =
+    do
+        let logger = Action.createLogger' "Action.Auth.getOrCreateProfile" ctx
 
-    Action.logDebug' logger "Updating or creating user profile"
+        Action.logDebug' logger "Updating or creating user profile in mongo"
 
-    _ <-
-        Action.withMongoAction'
-            ( MQuery.upsert
-                ( MQuery.select
+        _ <-
+            Action.withMongoAction'
+                ( MQuery.insert
+                    Documents.User.collection
                     [ Documents.User.userIdField userId
                     ]
-                    Documents.User.collection
                 )
-                [ Documents.User.userIdField userId
-                ]
-            )
-            >>= Action.withError'
-                logger
-                ( \err ->
-                    AppError
-                        { log = Just $ "Failed to get or create user profile: " <> show err
-                        , response = "Internal server error"
-                        , status = status500
-                        }
-                )
-
-    Action.logDebug' logger "Successfully updated or created user profile"
-
-    pure ()
+                >>= Action.withError'
+                    logger
+                    ( \err ->
+                        AppError
+                            { log = Just $ "Failed to get or create user profile: " <> show err
+                            , response = "Internal server error"
+                            , status = status500
+                            }
+                    )
+        Action.logDebug' logger "Successfully updated or created user profile in mongo"
+        pure ()

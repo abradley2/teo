@@ -187,7 +187,7 @@ withRoute route ( model, effect ) =
                 Routes.Dashboard ->
                     let
                         ( page, appAction, pageEffect ) =
-                            Dashboard.init
+                            Dashboard.init model.shared
                                 |> Tuple3.mapFirst Dashboard
                                 |> Tuple3.mapThird EffectDashboard
                     in
@@ -271,9 +271,9 @@ update msg model =
         ( GotLoginMsg _, _ ) ->
             ( model, EffectNone )
 
-        ( CheckedUserAuthorization redirectUrl (Ok True), _ ) ->
+        ( CheckedUserAuthorization _ (Ok True), _ ) ->
             ( model
-            , EffectReplaceUrl redirectUrl
+            , EffectReplaceUrl "/app/login"
             )
 
         ( CheckedUserAuthorization _ (Ok False), _ ) ->

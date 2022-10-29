@@ -5,13 +5,11 @@ import Action qualified
 import Action.Auth.Documents.User (User (..))
 import Action.Event.Documents.Event (Event (..))
 import Action.Event.Documents.Event qualified as Documents.Event
-import Data.Aeson qualified as Aeson
-import Data.Binary.Builder qualified as Builder
+
 import Data.Text.Lazy qualified as LazyText
 import Database.MongoDB (Cursor)
 import Database.MongoDB.Query qualified as MQuery
 import Network.HTTP.Types (status500)
-import Network.Wai qualified as Wai
 import Relude
 import Web.Scotty.Trans (ActionT)
 import Web.Scotty.Trans qualified as ScottyT
@@ -43,15 +41,13 @@ listEvents user =
                             }
                     )
 
+        Action.logDebug logger "Retrieved events from mongo, converting to JSON"
+
         resJson <- parseEvents ctx cursor
 
-        ScottyT.stream $ sendEvents resJson
+        Action.logDebug logger "Sending events to client"
 
-sendEvents :: [Event] -> Wai.StreamingBody
-sendEvents (event : next) fromBuilder flush = do
-    _ <- fromBuilder . Builder.fromLazyByteString $ Aeson.encode event
-    sendEvents next fromBuilder flush
-sendEvents [] _ flush = flush
+        ScottyT.json resJson
 
 parseEvents :: LoggingContext -> Cursor -> ActionT LazyText.Text Action [Event]
 parseEvents ctx cursor = do
@@ -66,6 +62,7 @@ parseEvents ctx cursor = do
                     , status = status500
                     }
         Right Nothing -> do
+            void . Action.withMongoActionThrow $ MQuery.closeCursor cursor
             pure []
         Right (Just eventDoc) ->
             case Documents.Event.decodeEvent eventDoc of

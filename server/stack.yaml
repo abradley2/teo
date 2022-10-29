@@ -17,9 +17,9 @@
 #
 # resolver: ./custom-snapshot.yaml
 # resolver: https://example.com/snapshots/2018-01-01.yaml
-resolver: nightly-2022-09-20
+resolver: nightly-2022-10-29
 
-
+allow-newer: true
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.
@@ -39,6 +39,7 @@ packages:
 extra-deps:
 - git: https://github.com/dmjio/envy.git 
   commit: fdb26b132ee709819c2899f3ced906071e46a5a1
+
 #
 # extra-deps: []
 

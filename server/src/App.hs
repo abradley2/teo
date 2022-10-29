@@ -32,7 +32,7 @@ serveApp = Static.policy defaultIndex
 server :: IO ()
 server = do
     env <- runExceptT Env.getEnv
-    either putStrLn (\e -> application e >>= run (Env.port e)) env
+    either putStrLn (\e -> application e >>= run (e.port)) env
 
 handler :: ScottyT LazyText.Text Action ()
 handler = do
@@ -43,5 +43,5 @@ handler = do
 application :: Env -> IO Application
 application env =
     do
-        putStrLn $ "Running server on port " <> show (port env)
+        putStrLn $ "Running server on port " <> show (env.port)
         staticMiddleware <$> ScottyT.scottyAppT (Action.runHandlerAction env) handler

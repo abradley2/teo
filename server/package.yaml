@@ -62,6 +62,8 @@ library:
     - OverloadedStrings
     - OverloadedRecordDot
     - ImportQualifiedPost
+    - NoFieldSelectors
+    - DuplicateRecordFields
 
 executables:
   server-exe:

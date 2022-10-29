@@ -13,6 +13,8 @@ module Action (
     throwError,
     withMongoAction,
     withMongoAction',
+    withMongoActionThrow,
+    withMongoActionThrow',
     withRedisAction,
     withRedisAction',
     logDebug',
@@ -23,7 +25,7 @@ module Action (
     logWarn,
 ) where
 
-import Control.Monad.Catch (handle)
+import Control.Monad.Catch (handle, try)
 import Control.Monad.Logger (LoggingT (LoggingT))
 import Control.Monad.Logger qualified as Logger
 import Data.Aeson qualified as Aeson
@@ -107,8 +109,7 @@ withError' logger toErr e = do
         Left err ->
             let logLevel = if err.status == status500 then Logger.LevelError else Logger.LevelDebug
              in maybe (pure ()) (logger logLevel) err.log
-        Right _ ->
-            pure ()
+        Right _ -> pure ()
 
     ExceptT $ pure result
 
@@ -117,7 +118,7 @@ withRedisAction action = lift $ withRedisAction' action
 
 withRedisAction' :: Redis.Redis a -> Action a
 withRedisAction' action = do
-    redisConn <- asks Env.redisConn
+    redisConn <- asks (\e -> e.redisConn)
     liftIO . Redis.runRedis redisConn $ action
 
 withMongoAction :: MongoDb.Action Action a -> ActionT LazyText.Text Action (Either MongoDb.Failure a)
@@ -125,11 +126,16 @@ withMongoAction = withMongoAction
 
 withMongoAction' :: MongoDb.Action Action a -> Action (Either MongoDb.Failure a)
 withMongoAction' action = do
-    pipe <- asks Env.mongoPipe
-    handle catch $ Right <$> MongoDb.access pipe MongoDb.UnconfirmedWrites "public_db" action
-  where
-    catch :: MongoDb.Failure -> Action (Either MongoDb.Failure a)
-    catch = pure . Left
+    pipe <- asks (\e -> e.mongoPipe)
+    try $ MongoDb.access pipe MongoDb.master "public_db" action
+
+withMongoActionThrow :: MongoDb.Action Action a -> ActionT LazyText.Text Action a
+withMongoActionThrow = lift . withMongoActionThrow'
+
+withMongoActionThrow' :: MongoDb.Action Action a -> Action a
+withMongoActionThrow' action = do
+    pipe <- asks (\e -> e.mongoPipe)
+    MongoDb.access pipe MongoDb.master "public_db" action
 
 throwError :: Logger -> AppError -> ActionT LazyText.Text Action a
 throwError logger appError = withError logger (const appError) (Left appError)
@@ -153,6 +159,6 @@ runHandlerAction env handler = do
         result <- withErr
         case result of
             Left err -> do
-                pure $ Wai.responseLBS (status err) [] err.response
+                pure $ Wai.responseLBS (err.status) [] err.response
             Right res ->
                 pure res

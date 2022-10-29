@@ -23,12 +23,36 @@ getEnv = do
         Envy.runParser (Envy.env "REDIS_PORT")
             >>= (except . bimap Text.unpack Redis.PortNumber . readEither)
 
-    mongoPort <-
-        Envy.runParser (Envy.env "MONGO_PORT")
-            >>= (except . bimap Text.unpack MongoDB.PortNumber . readEither)
+    -- replicaSet <-
+    --     liftIO $
+    --         MongoDB.openReplicaSetTLS
+    --             ( Text.pack "atlas-1vsvgu-shard-0"
+    --             ,
+    --                 [ MongoDB.host "ac-tky6m5c-shard-00-00.ndsopa6.mongodb.net"
+    --                 , MongoDB.host "ac-tky6m5c-shard-00-01.ndsopa6.mongodb.net"
+    --                 , MongoDB.host "ac-tky6m5c-shard-00-02.ndsopa6.mongodb.net"
+    --                 ]
+    --             )
+
+    mongoPipe <- liftIO $ MongoDB.connect (MongoDB.host "127.0.0.1")
+
+    -- replicaSet <-
+    --     liftIO $
+    --         MongoDB.openReplicaSetSRV' "cluster0.ndsopa6.mongodb.net"
+
+    -- mongoPipe <- liftIO $ MongoDB.primary replicaSet
+
+    -- mongoUser <- Envy.runParser (Envy.env "MONGO_USER")
+
+    -- mongoPassword <- Envy.runParser (Envy.env "MONGO_PASSWORD")
+
+    -- _ <-
+    --     if connectedResult
+    --         then pure ()
+    --         else ExceptT . pure $ Left "Failed to authenticate with mongo: invalid credentials"
 
     Env
         <$> Envy.runParser (Envy.env "PORT")
-        <*> liftIO (MongoDB.connect (MongoDB.Host "localhost" mongoPort))
+        <*> pure mongoPipe
         <*> liftIO (Redis.connect Redis.defaultConnectInfo{Redis.connectPort = redisPort})
         <*> pure Nothing
