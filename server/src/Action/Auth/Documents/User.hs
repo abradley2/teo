@@ -8,7 +8,10 @@ import Relude
 collection :: Collection
 collection = "users"
 
-newtype User = User {userId :: Text}
+data User = User
+    { _id :: Maybe Bson.ObjectId
+    , userId :: Text
+    }
 
 userIdField :: Text -> Field
 userIdField = ("userId" =:) . Bson.String
@@ -17,8 +20,12 @@ encodeUser :: User -> Bson.Document
 encodeUser user =
     [ "userId" =: Bson.String user.userId
     ]
+        <> case user._id of
+            Just oid -> ["_id" =: oid]
+            Nothing -> []
 
 decodeUser :: Bson.Document -> Either Text User
 decodeUser doc =
     User
-        <$> Bson.lookup "userId" doc
+        <$> Bson.lookup "_id" doc
+        <*> Bson.lookup "userId" doc

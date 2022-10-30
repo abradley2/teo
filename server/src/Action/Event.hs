@@ -5,7 +5,6 @@ import Action qualified
 import Action.Auth.Documents.User (User (..))
 import Action.Event.Documents.Event (Event (..))
 import Action.Event.Documents.Event qualified as Documents.Event
-
 import Data.Text.Lazy qualified as LazyText
 import Database.MongoDB (Cursor)
 import Database.MongoDB.Query qualified as MQuery
@@ -62,7 +61,7 @@ parseEvents ctx cursor = do
                     , status = status500
                     }
         Right Nothing -> do
-            void . Action.withMongoActionThrow $ MQuery.closeCursor cursor
+            void . Action.withMongoAction $ MQuery.closeCursor cursor
             pure []
         Right (Just eventDoc) ->
             case Documents.Event.decodeEvent eventDoc of

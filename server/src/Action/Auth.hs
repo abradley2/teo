@@ -78,7 +78,7 @@ withAuth handler =
         Action.logDebug logger "Retrieved userId from redis, retrieving user doc from mongo"
 
         user <-
-            Action.withMongoActionThrow
+            Action.withMongoAction
                 ( do
                     MQuery.findOne $
                         MQuery.select
@@ -86,15 +86,15 @@ withAuth handler =
                             ]
                             Documents.User.collection
                 )
-                -- >>= Action.withError
-                --     logger
-                --     ( \err ->
-                --         AppError
-                --             { log = Just $ "Failed to retrieve user from Mongo: " <> show err
-                --             , response = "Internal server error"
-                --             , status = status500
-                --             }
-                --     )
+                >>= Action.withError
+                    logger
+                    ( \err ->
+                        AppError
+                            { log = Just $ "Failed to retrieve user from Mongo: " <> show err
+                            , response = "Internal server error"
+                            , status = status500
+                            }
+                    )
                 >>= ( Action.withError
                         logger
                         ( const $
@@ -209,19 +209,28 @@ checkAuth = do
             Action.logDebug logger "User doesn't have auth token, verified that they are not authorized"
             ScottyT.json $ CheckAuthResponse False
 
-getOrCreateProfile :: LoggingContext -> Text -> Action ()
+getOrCreateProfile :: LoggingContext -> Text -> Action User
 getOrCreateProfile ctx userId =
     do
         let logger = Action.createLogger' "Action.Auth.getOrCreateProfile" ctx
 
         Action.logDebug' logger "Updating or creating user profile in mongo"
 
+        user <-
+            ( fromMaybe $
+                    Documents.User.User
+                        { _id = Nothing
+                        , userId = userId
+                        }
+                )
+                <$> getProfileById ctx userId
+
         _ <-
             Action.withMongoAction'
-                ( MQuery.insert
+                ( MQuery.save
                     Documents.User.collection
-                    [ Documents.User.userIdField userId
-                    ]
+                    ( Documents.User.encodeUser user
+                    )
                 )
                 >>= Action.withError'
                     logger
@@ -233,4 +242,46 @@ getOrCreateProfile ctx userId =
                             }
                     )
         Action.logDebug' logger "Successfully updated or created user profile in mongo"
-        pure ()
+        pure user
+
+getProfileById :: LoggingContext -> Text -> Action (Maybe User)
+getProfileById ctx userId = do
+    let logger = Action.createLogger' "Action.Auth.getProfileById" ctx
+
+    existingUserDoc <-
+        Action.withMongoAction'
+            ( MQuery.findOne $
+                MQuery.select
+                    [ Documents.User.userIdField userId
+                    ]
+                    Documents.User.collection
+            )
+            >>= Action.withError'
+                logger
+                ( \err ->
+                    AppError
+                        { log = Just $ "Query to search for existing user failed: " <> show err
+                        , response = "Internal server error"
+                        , status = status500
+                        }
+                )
+
+    case Documents.User.decodeUser <$> existingUserDoc of
+        Nothing -> pure Nothing
+        Just (Right user) -> pure (Just user)
+        Just (Left err) ->
+            Action.withError'
+                logger
+                ( const $
+                    AppError
+                        { log =
+                            Just $
+                                "Failed to decode existing user for userId "
+                                    <> userId
+                                    <> ": "
+                                    <> err
+                        , response = "Internal server error"
+                        , status = status500
+                        }
+                )
+                (Left err)

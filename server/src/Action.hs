@@ -13,8 +13,6 @@ module Action (
     throwError,
     withMongoAction,
     withMongoAction',
-    withMongoActionThrow,
-    withMongoActionThrow',
     withRedisAction,
     withRedisAction',
     logDebug',
@@ -25,7 +23,7 @@ module Action (
     logWarn,
 ) where
 
-import Control.Monad.Catch (handle, try)
+import Control.Monad.Catch (try)
 import Control.Monad.Logger (LoggingT (LoggingT))
 import Control.Monad.Logger qualified as Logger
 import Data.Aeson qualified as Aeson
@@ -122,20 +120,12 @@ withRedisAction' action = do
     liftIO . Redis.runRedis redisConn $ action
 
 withMongoAction :: MongoDb.Action Action a -> ActionT LazyText.Text Action (Either MongoDb.Failure a)
-withMongoAction = withMongoAction
+withMongoAction = lift . withMongoAction'
 
 withMongoAction' :: MongoDb.Action Action a -> Action (Either MongoDb.Failure a)
 withMongoAction' action = do
     pipe <- asks (\e -> e.mongoPipe)
     try $ MongoDb.access pipe MongoDb.master "public_db" action
-
-withMongoActionThrow :: MongoDb.Action Action a -> ActionT LazyText.Text Action a
-withMongoActionThrow = lift . withMongoActionThrow'
-
-withMongoActionThrow' :: MongoDb.Action Action a -> Action a
-withMongoActionThrow' action = do
-    pipe <- asks (\e -> e.mongoPipe)
-    MongoDb.access pipe MongoDb.master "public_db" action
 
 throwError :: Logger -> AppError -> ActionT LazyText.Text Action a
 throwError logger appError = withError logger (const appError) (Left appError)
