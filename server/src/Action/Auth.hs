@@ -11,20 +11,58 @@ import Action.Cookie qualified
 import Control.Concurrent.Async qualified as Async
 import Data.Aeson qualified as Aeson
 import Data.ByteString.Lazy qualified as LazyByteString
+import Data.Map qualified as Map
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Text.Lazy qualified as LazyText
+import Data.Time.Clock.POSIX qualified as POSIX
 import Data.UUID qualified as UUID
 import Data.UUID.V4 qualified as UUID.V4
 import Database.MongoDB.Query qualified as MQuery
 import Database.Redis qualified as Redis
+import Env qualified
 import Network.HTTP.Types (status400, status401, status500)
 import Relude
+import Web.JWT (EncodeSigner (..), JOSEHeader (..), JWTClaimsSet (..))
+import Web.JWT qualified as JWT
 import Web.Scotty.Trans (ActionT)
 import Web.Scotty.Trans qualified as ScottyT
 
 authCookieName :: Text
 authCookieName = "auth"
+
+createJWT :: User -> Action Text
+createJWT user = do
+    let header =
+            JOSEHeader
+                { alg = Just JWT.HS256
+                , typ = Just "JWT"
+                , kid = Nothing
+                , cty = Nothing
+                }
+
+    signer <- EncodeHMACSecret <$> asks (\e -> e.jwtSigningKey)
+    iatDate <- liftIO POSIX.getPOSIXTime
+    expDate <- liftIO $ (+ 86400) <$> POSIX.getPOSIXTime
+    pure $
+        JWT.encodeSigned
+            signer
+            header
+            ( JWTClaimsSet
+                { iss = Nothing
+                , jti = Nothing
+                , iat = JWT.numericDate iatDate
+                , nbf = Nothing
+                , exp = JWT.numericDate expDate
+                , aud = Left <$> JWT.stringOrURI "teo-web-ogsac"
+                , sub = JWT.stringOrURI user.userId
+                , unregisteredClaims =
+                    JWT.ClaimsMap
+                        ( mempty
+                            & Map.insert "userId" (Aeson.String user.userId)
+                        )
+                }
+            )
 
 withAuth :: (User -> ActionT LazyText.Text Action a) -> ActionT LazyText.Text Action a
 withAuth handler =
@@ -164,22 +202,24 @@ authorize = do
                             }
                     )
 
-    (res1, res2) <- liftIO $ Async.withAsync (Action.runAction env $ getOrCreateProfile ctx reqBody.userId) $ \a1 -> do
-        Async.withAsync (Action.runAction env storeTokenInRedis) $ \a2 -> do
-            Async.waitBoth a1 a2
+    (userResult, redisResult) <- liftIO $
+        Async.withAsync (Action.runAction env $ getOrCreateProfile ctx reqBody.userId) $ \a1 -> do
+            Async.withAsync (Action.runAction env storeTokenInRedis) $ \a2 -> do
+                Async.waitBoth a1 a2
 
-    case (res1, res2) of
-        (Left err, _) -> Action.throwError logger err
-        (_, Left err) -> Action.throwError logger err
-        _ -> pure ()
+    user <- Action.withHandledError userResult
+    _ <- Action.withHandledError redisResult
 
     Action.Cookie.setCookie authCookieName clientToken
 
-    ScottyT.json $ AuthorizeResponse reqBody.userId True
+    token <- lift $ createJWT user
+
+    ScottyT.json $ AuthorizeResponse reqBody.userId True token
 
 checkAuth :: ActionT LazyText.Text Action ()
 checkAuth = do
-    logger <- Action.createLogger "Action.Auth.checkAuth"
+    ctx <- Action.getLoggingContext
+    let logger = Action.createLogger' "Action.Auth.checkAuth" ctx
 
     Action.logDebug logger "Checking auth status"
 
@@ -204,10 +244,22 @@ checkAuth = do
                             }
                     )
                     authTokenQuery
-            ScottyT.json $ CheckAuthResponse (isJust authTokenResult)
+
+            user <- case authTokenResult of
+                Just userId -> lift $ getProfileById ctx (Text.decodeUtf8 userId)
+                Nothing -> pure Nothing
+
+            token <-
+                case user of
+                    Just u -> lift $ Just <$> createJWT u
+                    _ -> pure Nothing
+
+            ScottyT.json $ CheckAuthResponse (isJust authTokenResult) token
         Nothing -> do
-            Action.logDebug logger "User doesn't have auth token, verified that they are not authorized"
-            ScottyT.json $ CheckAuthResponse False
+            Action.logDebug
+                logger
+                "User doesn't have auth token, verified that they are not authorized"
+            ScottyT.json $ CheckAuthResponse False Nothing
 
 getOrCreateProfile :: LoggingContext -> Text -> Action User
 getOrCreateProfile ctx userId =

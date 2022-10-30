@@ -5,6 +5,8 @@ module Action (
     LoggingContext,
     withError,
     withError',
+    withHandledError,
+    withHandledError',
     runAction,
     runHandlerAction,
     getLoggingContext,
@@ -24,6 +26,7 @@ module Action (
 ) where
 
 import Control.Monad.Catch (try)
+import Control.Monad.Except (liftEither)
 import Control.Monad.Logger (LoggingT (LoggingT))
 import Control.Monad.Logger qualified as Logger
 import Data.Aeson qualified as Aeson
@@ -110,6 +113,12 @@ withError' logger toErr e = do
         Right _ -> pure ()
 
     ExceptT $ pure result
+
+withHandledError :: Either AppError a -> ActionT LazyText.Text Action a
+withHandledError = lift . withHandledError'
+
+withHandledError' :: Either AppError a -> Action a
+withHandledError' = liftEither
 
 withRedisAction :: Redis.Redis a -> ActionT LazyText.Text Action a
 withRedisAction action = lift $ withRedisAction' action

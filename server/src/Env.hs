@@ -3,6 +3,7 @@ module Env (getEnv, Env (..)) where
 import Configuration.Dotenv qualified as Dotenv
 import Control.Monad.Trans.Except
 import Data.Text qualified as Text
+import Data.Text.Encoding qualified as Text
 import Database.MongoDB qualified as MongoDB
 import Database.Redis qualified as Redis
 import Relude
@@ -13,6 +14,7 @@ data Env = Env
     , mongoPipe :: MongoDB.Pipe
     , redisConn :: Redis.Connection
     , requestId :: Maybe Text
+    , jwtSigningKey :: ByteString
     }
 
 getEnv :: ExceptT String IO Env
@@ -52,3 +54,4 @@ getEnv = do
         <*> pure mongoPipe
         <*> liftIO (Redis.connect Redis.defaultConnectInfo{Redis.connectPort = redisPort})
         <*> pure Nothing
+        <*> (Text.encodeUtf8 <$> Envy.runParser (Envy.env "JWT_SIGNING_KEY"))

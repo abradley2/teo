@@ -52,18 +52,22 @@ library
     , base >=4.7 && <5
     , binary
     , bson
+    , containers
     , cookie
     , dotenv
     , envy
     , exceptions
     , hedis
     , http-types
+    , jwt
     , monad-logger
     , mongoDB
+    , mtl
     , network
     , relude
     , scotty
     , text
+    , time
     , transformers
     , uuid
     , wai
@@ -84,19 +88,23 @@ executable server-exe
     , base >=4.7 && <5
     , binary
     , bson
+    , containers
     , cookie
     , dotenv
     , envy
     , exceptions
     , hedis
     , http-types
+    , jwt
     , monad-logger
     , mongoDB
+    , mtl
     , network
     , relude
     , scotty
     , server
     , text
+    , time
     , transformers
     , uuid
     , wai
@@ -118,19 +126,23 @@ test-suite teo-test
     , base >=4.7 && <5
     , binary
     , bson
+    , containers
     , cookie
     , dotenv
     , envy
     , exceptions
     , hedis
     , http-types
+    , jwt
     , monad-logger
     , mongoDB
+    , mtl
     , network
     , relude
     , scotty
     , teo
     , text
+    , time
     , transformers
     , uuid
     , wai

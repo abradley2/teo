@@ -41,6 +41,10 @@ dependencies:
 - exceptions
 - async
 - binary
+- jwt
+- time
+- containers
+- mtl
 
 ghc-options:
 - -Wall

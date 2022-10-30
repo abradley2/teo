@@ -8,7 +8,7 @@
         "name": "custom-token",
         "type": "custom-token",
         "config": {
-            "audience": "%%values.app_name",
+            "audience": "teo-web-ogsac",
             "requireAnyAudience": true,
             "signingAlgorithm": "HS256",
             "useJWKURI": false
