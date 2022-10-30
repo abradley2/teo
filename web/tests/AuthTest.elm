@@ -31,7 +31,7 @@ suite =
                     |> ProgramTest.simulateHttpOk
                         "GET"
                         Main.checkAuthUrl
-                        """{"authorized": false}"""
+                        """{"token": null}"""
                     |> ProgramTest.expectBrowserUrl
                         (Expect.equal <| Url.Builder.crossOrigin TestApp.baseUrl [ "app", "login" ] [])
         , test "Users can log in by clicking the login button" <|
@@ -43,12 +43,12 @@ suite =
                     |> ProgramTest.simulateHttpOk
                         "GET"
                         Main.checkAuthUrl
-                        """{"authorized": false}"""
+                        """{"token": null}"""
                     |> ProgramTest.clickButton (Translations.Login.buttonPrompt [ defaultLanguage ])
                     |> ProgramTest.simulateHttpOk
                         "POST"
                         Login.loginUrl
-                        """{"authorized": true, "userId": "Test user"}"""
+                        """{"token": "fake-token", "userId": "Test user"}"""
                     |> ProgramTest.expectBrowserUrl
                         (Expect.equal <| Url.Builder.crossOrigin TestApp.baseUrl [] [])
         , test "An error is displayed if the initial check auth request fails" <|
@@ -73,7 +73,7 @@ suite =
                     |> ProgramTest.simulateHttpOk
                         "GET"
                         Main.checkAuthUrl
-                        """{"authorized": false}"""
+                        """{"token": null}"""
                     |> ProgramTest.clickButton (Translations.Login.buttonPrompt [ defaultLanguage ])
                     |> ProgramTest.simulateHttpResponse
                         "POST"

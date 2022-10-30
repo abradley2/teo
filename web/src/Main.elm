@@ -1,6 +1,18 @@
-module Main exposing (Effect(..), Flags, Model, Msg(..), Page(..), checkAuthResponseDecoder, checkAuthUrl, initWithFlags, main, update, view)
+module Main exposing
+    ( Effect(..)
+    , Flags
+    , Model
+    , Msg(..)
+    , Page(..)
+    , checkAuthResponseDecoder
+    , checkAuthUrl
+    , initWithFlags
+    , main
+    , update
+    , view
+    )
 
-import AppAction exposing (AppAction, Notification)
+import AppAction exposing (AppAction, Notification, RealmJwt(..))
 import Browser
 import Html.Styled as H exposing (Html)
 import Http
@@ -31,6 +43,7 @@ type Effect
     | EffectCancelRequest String
     | EffectPushUrl String
     | EffectReplaceUrl String
+    | EffectStartRealm RealmJwt
     | EffectBatch (List Effect)
 
 
@@ -39,9 +52,9 @@ checkAuthUrl =
     "/api/check-auth"
 
 
-checkAuthResponseDecoder : Decoder Bool
+checkAuthResponseDecoder : Decoder (Maybe RealmJwt)
 checkAuthResponseDecoder =
-    Decode.field "authorized" Decode.bool
+    Decode.field "token" (Decode.nullable (Decode.map RealmJwt Decode.string))
 
 
 perform : Effect -> Cmd Msg
@@ -64,6 +77,9 @@ perform effect =
 
         EffectRequestData k ->
             Ports.requestData k
+
+        EffectStartRealm (RealmJwt jwt) ->
+            Ports.startRealm jwt
 
         EffectCheckAuth clientId redirectUrl ->
             Http.request
@@ -126,7 +142,7 @@ flagsDecoder =
 type Msg
     = NoOp
     | RouteChanged Route
-    | CheckedUserAuthorization String (Result Http.Error Bool)
+    | CheckedUserAuthorization String (Result Http.Error (Maybe RealmJwt))
     | GotLayoutMsg Layout.Msg
     | GotDashboardMsg Dashboard.Msg
     | GotLoginMsg Login.Msg
@@ -229,6 +245,16 @@ withAppAction action ( model, effect ) =
                 Just (AppAction.RequestData k) ->
                     ( model, Just (EffectRequestData k) )
 
+                Just (AppAction.StartRealm token) ->
+                    ( model, Just <| EffectStartRealm token )
+
+                Just (AppAction.Batch actions) ->
+                    List.foldr
+                        (\next acc -> withAppAction (Just next) acc)
+                        ( model, EffectNone )
+                        actions
+                        |> Tuple.mapSecond Just
+
                 Just AppAction.None ->
                     ( model, Nothing )
 
@@ -271,12 +297,15 @@ update msg model =
         ( GotLoginMsg _, _ ) ->
             ( model, EffectNone )
 
-        ( CheckedUserAuthorization _ (Ok True), _ ) ->
+        ( CheckedUserAuthorization redirectUrl (Ok (Just token)), _ ) ->
             ( model
-            , EffectReplaceUrl "/app/login"
+            , EffectBatch
+                [ EffectReplaceUrl redirectUrl
+                , EffectStartRealm token
+                ]
             )
 
-        ( CheckedUserAuthorization _ (Ok False), _ ) ->
+        ( CheckedUserAuthorization _ (Ok Nothing), _ ) ->
             ( model
             , EffectReplaceUrl "/app/login"
             )

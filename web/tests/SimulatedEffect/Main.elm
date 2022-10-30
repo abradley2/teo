@@ -1,5 +1,6 @@
 module SimulatedEffect.Main exposing (..)
 
+import AppAction exposing (RealmJwt(..))
 import Json.Encode as Encode
 import Main
 import ProgramTest exposing (SimulatedEffect)
@@ -42,7 +43,7 @@ perform effect =
                 , timeout = Just 5000
                 }
 
-        Main.EffectCancelRequest tracker ->
+        Main.EffectCancelRequest _ ->
             SimulatedCmd.none
 
         Main.EffectReplaceUrl url ->
@@ -60,6 +61,9 @@ perform effect =
 
         Main.EffectRequestData key ->
             SimulatedPorts.send "requestData" (Encode.string key)
+
+        Main.EffectStartRealm (RealmJwt jwt) ->
+            SimulatedPorts.send "startRealm" (Encode.string jwt)
 
         Main.EffectBatch effects ->
             List.foldr

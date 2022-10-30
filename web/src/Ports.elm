@@ -1,4 +1,12 @@
-port module Ports exposing (linkClicked, pushUrl, receiveData, replaceUrl, requestData, storeData)
+port module Ports exposing
+    ( linkClicked
+    , pushUrl
+    , receiveData
+    , replaceUrl
+    , requestData
+    , startRealm
+    , storeData
+    )
 
 import Json.Decode exposing (Value)
 
@@ -19,3 +27,6 @@ port replaceUrl : String -> Cmd msg
 
 
 port pushUrl : String -> Cmd msg
+
+
+port startRealm : String -> Cmd msg

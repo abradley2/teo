@@ -1,6 +1,6 @@
 module Page.Login exposing (Effect(..), LoginResponse, Model, Msg(..), encodeLoginRequest, init, loginResponseDecoder, loginUrl, perform, unload, update, view)
 
-import AppAction exposing (AppAction)
+import AppAction exposing (AppAction, RealmJwt(..))
 import Css
 import Html.Styled as H exposing (Html)
 import Html.Styled.Attributes as A
@@ -86,7 +86,7 @@ type Msg
 
 
 type alias LoginResponse =
-    { authorized : Bool
+    { token : RealmJwt
     , userId : String
     }
 
@@ -95,7 +95,7 @@ loginResponseDecoder : Decoder LoginResponse
 loginResponseDecoder =
     Decode.map2
         LoginResponse
-        (Decode.field "authorized" Decode.bool)
+        (Decode.field "token" (Decode.map RealmJwt Decode.string))
         (Decode.field "userId" Decode.string)
 
 
@@ -144,9 +144,13 @@ update shared msg model =
             , EffectNone
             )
 
-        ReceivedLoginResponse (Ok _) ->
+        ReceivedLoginResponse (Ok res) ->
             ( { model | loginRequest = Success () }
-            , Just <| AppAction.ReplaceUrl "/"
+            , Just <|
+                AppAction.Batch
+                    [ AppAction.ReplaceUrl "/"
+                    , AppAction.StartRealm res.token
+                    ]
             , EffectNone
             )
 
