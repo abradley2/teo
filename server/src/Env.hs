@@ -23,33 +23,29 @@ getEnv = do
         Envy.runParser (Envy.env "REDIS_PORT")
             >>= (except . bimap Text.unpack Redis.PortNumber . readEither)
 
-    -- replicaSet <-
-    --     liftIO $
-    --         MongoDB.openReplicaSetTLS
-    --             ( Text.pack "atlas-1vsvgu-shard-0"
-    --             ,
-    --                 [ MongoDB.host "ac-tky6m5c-shard-00-00.ndsopa6.mongodb.net"
-    --                 , MongoDB.host "ac-tky6m5c-shard-00-01.ndsopa6.mongodb.net"
-    --                 , MongoDB.host "ac-tky6m5c-shard-00-02.ndsopa6.mongodb.net"
-    --                 ]
-    --             )
+    mongoAtlasCluster <- Envy.runParser (Envy.env "MONGO_ATLAS_CLUSTER")
 
-    mongoPipe <- liftIO $ MongoDB.connect (MongoDB.host "127.0.0.1")
+    mongoAtlasUser <- Envy.runParser (Envy.env "MONGO_ATLAS_USER")
 
-    -- replicaSet <-
-    --     liftIO $
-    --         MongoDB.openReplicaSetSRV' "cluster0.ndsopa6.mongodb.net"
+    mongoAtlasPassword <- Envy.runParser (Envy.env "MONGO_ATLAS_PASSWORD")
 
-    -- mongoPipe <- liftIO $ MongoDB.primary replicaSet
+    replicaSet <-
+        liftIO $
+            MongoDB.openReplicaSetSRV' mongoAtlasCluster
 
-    -- mongoUser <- Envy.runParser (Envy.env "MONGO_USER")
+    mongoPipe <- liftIO $ MongoDB.primary replicaSet
 
-    -- mongoPassword <- Envy.runParser (Envy.env "MONGO_PASSWORD")
+    connectedResult <-
+        liftIO $
+            MongoDB.access mongoPipe MongoDB.master "admin" $
+                MongoDB.auth
+                    mongoAtlasUser
+                    mongoAtlasPassword
 
-    -- _ <-
-    --     if connectedResult
-    --         then pure ()
-    --         else ExceptT . pure $ Left "Failed to authenticate with mongo: invalid credentials"
+    _ <-
+        if connectedResult
+            then pure ()
+            else ExceptT . pure $ Left "Failed to authenticate with mongo: invalid credentials"
 
     Env
         <$> Envy.runParser (Envy.env "PORT")
