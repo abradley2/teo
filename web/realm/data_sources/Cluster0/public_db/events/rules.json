@@ -10,7 +10,8 @@
                         "name": "checkUser",
                         "arguments": [
                             "%%user",
-                            "%%root"
+                            "%%root",
+                            "%%request"
                         ]
                     }
                 }
