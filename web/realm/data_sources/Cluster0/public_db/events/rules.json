@@ -1,5 +1,5 @@
 {
-    "database": "Cluster0",
+    "database": "public_db",
     "collection": "events",
     "roles": [
         {
