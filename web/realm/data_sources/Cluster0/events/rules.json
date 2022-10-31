@@ -1,0 +1,38 @@
+{
+    "database": "Cluster0",
+    "collection": "events",
+    "roles": [
+        {
+            "name": "default_user",
+            "apply_when": {
+                "%%root.userId": {
+                    "$eq": "%%user.id"
+                }
+            },
+            "insert": true,
+            "delete": true,
+            "read": true,
+            "write": true,
+            "search": true,
+            "fields": {
+                "userId": {
+                    "read": true,
+                    "write": true
+                },
+                "name": {
+                    "read": true,
+                    "write": true
+                },
+                "game": {
+                    "read": true,
+                    "write": true
+                }
+            },
+            "additional_fields": {
+                "read": true,
+                "write": true
+            }
+        }
+    ],
+    "filters": []
+}
