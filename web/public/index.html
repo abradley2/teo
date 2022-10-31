@@ -57,7 +57,19 @@
 
                 app.logIn(credentials)
                     .then(function (res) {
-                        console.log("SUCCESS", res)
+                        const mongo = app.currentUser.mongoClient("Cluster0")
+                        const events = mongo.db("public_db").collection("events")
+
+                        events.insertOne({
+                            name: "Test Event",
+                            game: "Mortal Kombat"
+                        })
+                            .then(function (insertRes) {
+                                console.log('SUCCESS: ', insertRes)
+                            })
+                            .catch(function (err) {
+                                console.log('ERROR: ', err)
+                            })
                     })
                     .catch(function (err) {
                         console.error(err)
