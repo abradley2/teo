@@ -5,8 +5,14 @@
         {
             "name": "default_user",
             "apply_when": {
-                "%%root.userId": {
-                    "$eq": "%%user.id"
+                "%%true": {
+                    "%function": {
+                        "name": "checkUser",
+                        "arguments": [
+                            "%%user",
+                            "%%root"
+                        ]
+                    }
                 }
             },
             "insert": true,

@@ -1,1 +1,11 @@
-[]
+[
+    {
+        "name": "checkUser.js",
+        "private": false,
+        "can_evaluate": {
+            "$$true": true
+        },
+        "disable_arg_logs": false,
+        "run_as_system": true
+    }
+]
