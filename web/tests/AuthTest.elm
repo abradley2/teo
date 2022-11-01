@@ -2,14 +2,9 @@ module AuthTest exposing (suite)
 
 import Expect
 import Language exposing (defaultLanguage)
-import List.Extra as List
 import Main
-import Maybe.Extra as Maybe
 import Page.Login as Login
 import ProgramTest
-import Shared
-import SimulatedEffect.Cmd as SimulatedCmd
-import SimulatedEffect.Http as SimulatedHttp
 import Test exposing (Test, describe, test)
 import Test.Html.Selector as Selector
 import Test.Http
@@ -31,7 +26,7 @@ suite =
                     |> ProgramTest.simulateHttpOk
                         "GET"
                         Main.checkAuthUrl
-                        """{"token": null}"""
+                        """{"token": null, "userId": null}"""
                     |> ProgramTest.expectBrowserUrl
                         (Expect.equal <| Url.Builder.crossOrigin TestApp.baseUrl [ "app", "login" ] [])
         , test "Users can log in by clicking the login button" <|
@@ -43,7 +38,7 @@ suite =
                     |> ProgramTest.simulateHttpOk
                         "GET"
                         Main.checkAuthUrl
-                        """{"token": null}"""
+                        """{"token": null, "userId": null}"""
                     |> ProgramTest.clickButton (Translations.Login.buttonPrompt [ defaultLanguage ])
                     |> ProgramTest.simulateHttpOk
                         "POST"
@@ -73,7 +68,7 @@ suite =
                     |> ProgramTest.simulateHttpOk
                         "GET"
                         Main.checkAuthUrl
-                        """{"token": null}"""
+                        """{"token": null, "userId": null}"""
                     |> ProgramTest.clickButton (Translations.Login.buttonPrompt [ defaultLanguage ])
                     |> ProgramTest.simulateHttpResponse
                         "POST"

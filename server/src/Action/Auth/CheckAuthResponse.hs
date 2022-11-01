@@ -4,11 +4,11 @@ import Data.Aeson ((.=))
 import Data.Aeson qualified as Aeson
 import Relude
 
-data CheckAuthResponse = CheckAuthResponse {authorized :: Bool, token :: Maybe Text}
+data CheckAuthResponse = CheckAuthResponse {userId :: Maybe Text, token :: Maybe Text}
 
 instance Aeson.ToJSON CheckAuthResponse where
     toJSON res =
         Aeson.object
-            [ "authorized" .= res.authorized
+            [ "userId" .= res.userId
             , "token" .= res.token
             ]

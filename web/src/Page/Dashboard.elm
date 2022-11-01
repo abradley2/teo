@@ -4,10 +4,12 @@ import AppAction exposing (AppAction)
 import Html.Styled as H exposing (Html)
 import Http
 import HttpData exposing (HttpData(..))
-import Json.Decode as Decode exposing (Decoder, Value)
+import Json.Decode as Decode exposing (Decoder)
+import Json.Encode as Encode exposing (Value)
 import Ports
-import Shared exposing (ClientId, Shared)
+import Shared exposing (Shared)
 import Translations.Dashboard
+import User exposing (User)
 
 
 type alias Event =
@@ -36,24 +38,25 @@ type Msg
 
 type Effect
     = EffectNone
-    | EffectRequestEvents ClientId String
+    | EffectRequestEvents
+    | EffectCreateEvent Value
+    | EffectBatch (List Effect)
 
 
 perform : Effect -> Cmd Msg
 perform effect =
     case effect of
-        EffectRequestEvents clientId tracker ->
-            Http.request
-                { method = "GET"
-                , url = "/api/events"
-                , headers =
-                    [ Shared.clientIdToHeader clientId
-                    ]
-                , timeout = Just 5000
-                , tracker = Just tracker
-                , expect = Http.expectJson ReceivedEventsResponse (Decode.list eventDecoder)
-                , body = Http.emptyBody
-                }
+        EffectRequestEvents ->
+            Ports.requestEvents ()
+
+        EffectCreateEvent value ->
+            Ports.createEvent value
+
+        EffectBatch effects ->
+            List.foldr
+                (\effect_ cmd -> Cmd.batch [ perform effect_, cmd ])
+                Cmd.none
+                effects
 
         EffectNone ->
             Cmd.none
@@ -69,8 +72,8 @@ dataKey =
     "dashboard-data"
 
 
-init : Shared -> ( Model, Maybe AppAction, Effect )
-init shared =
+init : User -> Shared -> ( Model, Maybe AppAction, Effect )
+init user shared =
     let
         getEventsTracker : String
         getEventsTracker =
@@ -79,7 +82,16 @@ init shared =
     ( { events = Loading (Just getEventsTracker)
       }
     , Just (AppAction.RequestData dataKey)
-    , EffectRequestEvents shared.clientId getEventsTracker
+    , EffectBatch
+        [ EffectRequestEvents
+        , EffectCreateEvent
+            (Encode.object
+                [ ( "userId", Encode.string (User.userId user) )
+                , ( "name", Encode.string "Test tournament" )
+                , ( "game", Encode.string "Warhammer" )
+                ]
+            )
+        ]
     )
 
 
@@ -105,8 +117,8 @@ unload model =
             Nothing
 
 
-update : Shared -> Msg -> Model -> ( Model, Maybe AppAction, Effect )
-update shared msg model =
+update : User -> Shared -> Msg -> Model -> ( Model, Maybe AppAction, Effect )
+update user shared msg model =
     ( model, Nothing, EffectNone )
 
 

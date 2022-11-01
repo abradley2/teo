@@ -1,0 +1,38 @@
+{
+    "type": "partition",
+    "state": "enabled",
+    "development_mode_enabled": true,
+    "service_name": "Cluster0",
+    "database_name": "public_db",
+    "client_max_offline_days": 30,
+    "is_recovery_mode_disabled": false,
+    "partition": {
+        "key": "userId",
+        "type": "string",
+        "required": true,
+        "permissions": {
+            "read": {
+                "%%true": {
+                    "%function": {
+                        "arguments": [
+                            "%%user",
+                            "%%root"
+                        ],
+                        "name": "checkUser"
+                    }
+                }
+            },
+            "write": {
+                "%%true": {
+                    "%function": {
+                        "arguments": [
+                            "%%user",
+                            "%%root"
+                        ],
+                        "name": "checkUser"
+                    }
+                }
+            }
+        }
+    }
+}

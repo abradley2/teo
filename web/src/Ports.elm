@@ -1,12 +1,4 @@
-port module Ports exposing
-    ( linkClicked
-    , pushUrl
-    , receiveData
-    , replaceUrl
-    , requestData
-    , startRealm
-    , storeData
-    )
+port module Ports exposing (..)
 
 import Json.Decode exposing (Value)
 
@@ -30,3 +22,19 @@ port pushUrl : String -> Cmd msg
 
 
 port startRealm : String -> Cmd msg
+
+
+
+-- Realm ports
+
+
+port createEvent : Value -> Cmd msg
+
+
+port createEventResponse : (Value -> msg) -> Sub msg
+
+
+port requestEvents : () -> Cmd msg
+
+
+port requestEventsResponse : (Value -> msg) -> Sub msg

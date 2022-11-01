@@ -30,7 +30,7 @@ import Routes exposing (Route)
 import Shared exposing (ClientId(..), LanguageId, Shared)
 import Translations
 import Tuple3
-import User exposing (User)
+import User exposing (User, UserId(..))
 
 
 type Effect
@@ -52,9 +52,20 @@ checkAuthUrl =
     "/api/check-auth"
 
 
-checkAuthResponseDecoder : Decoder (Maybe RealmJwt)
+checkAuthResponseDecoder : Decoder (Maybe ( UserId, RealmJwt ))
 checkAuthResponseDecoder =
-    Decode.field "token" (Decode.nullable (Decode.map RealmJwt Decode.string))
+    Decode.map2
+        Tuple.pair
+        (Decode.field "token" (Decode.nullable (Decode.map RealmJwt Decode.string)))
+        (Decode.field "userId" (Decode.nullable (Decode.map UserId Decode.string)))
+        |> Decode.andThen
+            (\( token, userId ) ->
+                Maybe.map2
+                    (\token_ userId_ -> Just ( userId_, token_ ) |> Decode.succeed)
+                    token
+                    userId
+                    |> Maybe.withDefault (Decode.succeed Nothing)
+            )
 
 
 perform : Effect -> Cmd Msg
@@ -107,7 +118,7 @@ perform effect =
 type Page
     = CheckAuth
     | Login Login.Model
-    | Dashboard Dashboard.Model
+    | Dashboard User Dashboard.Model
     | NotFound
 
 
@@ -142,7 +153,7 @@ flagsDecoder =
 type Msg
     = NoOp
     | RouteChanged Route
-    | CheckedUserAuthorization String (Result Http.Error (Maybe RealmJwt))
+    | CheckedUserAuthorization String (Result Http.Error (Maybe ( UserId, RealmJwt )))
     | GotLayoutMsg Layout.Msg
     | GotDashboardMsg Dashboard.Msg
     | GotLoginMsg Login.Msg
@@ -151,7 +162,7 @@ type Msg
 type alias Model =
     { page : Page
     , layout : Layout.Model
-    , user : HttpData User
+    , user : HttpData (Maybe User)
     , notification : Maybe ( Notification, String )
     , shared : Shared
     }
@@ -193,23 +204,26 @@ withRoute route ( model, effect ) =
             EffectBatch [ effect, newEffect ]
 
         ( nextModel, nextEffect ) =
-            case route of
-                Routes.NotFound ->
+            case ( route, model.user ) of
+                ( Routes.NotFound, _ ) ->
                     ( { model | page = NotFound }, Nothing )
 
-                Routes.Login ->
+                ( Routes.Login, _ ) ->
                     ( { model | page = Login Login.init }, Nothing )
 
-                Routes.Dashboard ->
+                ( Routes.Dashboard, HttpData.Success (Just user) ) ->
                     let
                         ( page, appAction, pageEffect ) =
-                            Dashboard.init model.shared
-                                |> Tuple3.mapFirst Dashboard
+                            Dashboard.init user model.shared
+                                |> Tuple3.mapFirst (Dashboard user)
                                 |> Tuple3.mapThird EffectDashboard
                     in
                     ( { model | page = page }, pageEffect )
                         |> withAppAction appAction
                         |> Tuple.mapSecond Just
+
+                ( Routes.Dashboard, _ ) ->
+                    ( { model | page = NotFound }, Nothing )
     in
     ( nextModel, Maybe.map appendEffect nextEffect |> Maybe.withDefault effect )
 
@@ -273,11 +287,11 @@ update msg model =
         ( GotLayoutMsg layoutMsg, _ ) ->
             ( { model | layout = Layout.update layoutMsg model.layout }, EffectNone )
 
-        ( GotDashboardMsg dashboardMsg, Dashboard page ) ->
+        ( GotDashboardMsg dashboardMsg, Dashboard user page ) ->
             let
                 ( nextPage, appAction, effect ) =
-                    Dashboard.update model.shared dashboardMsg page
-                        |> Tuple3.mapFirst Dashboard
+                    Dashboard.update user model.shared dashboardMsg page
+                        |> Tuple3.mapFirst (Dashboard user)
                         |> Tuple3.mapThird EffectDashboard
             in
             withAppAction appAction ( { model | page = nextPage }, effect )
@@ -297,8 +311,8 @@ update msg model =
         ( GotLoginMsg _, _ ) ->
             ( model, EffectNone )
 
-        ( CheckedUserAuthorization redirectUrl (Ok (Just token)), _ ) ->
-            ( model
+        ( CheckedUserAuthorization redirectUrl (Ok (Just ( userId, token ))), _ ) ->
+            ( { model | user = HttpData.Success (Just { userId = userId }) }
             , EffectBatch
                 [ EffectReplaceUrl redirectUrl
                 , EffectStartRealm token
@@ -306,7 +320,7 @@ update msg model =
             )
 
         ( CheckedUserAuthorization _ (Ok Nothing), _ ) ->
-            ( model
+            ( { model | user = HttpData.Success Nothing }
             , EffectReplaceUrl "/app/login"
             )
 
@@ -319,7 +333,7 @@ update msg model =
                             (Translations.checkAuthorizationError model.shared.language)
                     )
 
-        ( RouteChanged route, Dashboard page ) ->
+        ( RouteChanged route, Dashboard _ page ) ->
             withAppAction (Dashboard.unload page) ( model, EffectNone )
                 |> withRoute route
 
@@ -344,7 +358,7 @@ subscriptions model =
             Login _ ->
                 Sub.none
 
-            Dashboard page ->
+            Dashboard _ page ->
                 Dashboard.subscriptions page
                     |> Sub.map GotDashboardMsg
 
@@ -364,7 +378,7 @@ view model =
                 Login.view model.shared page
                     |> H.map GotLoginMsg
 
-            Dashboard page ->
+            Dashboard _ page ->
                 Dashboard.view model.shared page
                     |> H.map GotDashboardMsg
 

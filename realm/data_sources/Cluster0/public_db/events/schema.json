@@ -1,0 +1,19 @@
+{
+    "properties": {
+        "game": {
+            "bsonType": "string"
+        },
+        "name": {
+            "bsonType": "string"
+        },
+        "userId": {
+            "bsonType": "string"
+        }
+    },
+    "required": [
+        "userId",
+        "game",
+        "name"
+    ],
+    "title": "event"
+}

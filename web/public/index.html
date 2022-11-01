@@ -20,6 +20,17 @@
     <div id="app"></div>
     <script src="/main.bundle.js"></script>
     <script>
+        let _resolveRealm
+        const _loadRealm = new Promise(function (resolve) {
+            _resolveRealm = resolve
+        })
+
+        const withRealm = (fn) => (...args) => _loadRealm.then(({ realmUser, realmApp }) => fn({ realmUser, realmApp }, ...args))
+
+        const getCollection = (collection) => (realmUser) => realmUser.mongoClient("Cluster0").db("public_db").collection(collection)
+
+        const getEventsCollection = getCollection('events')
+
         Promise.all([
             fetch('/translations.en.json')
                 .then(response => response.json())
@@ -50,29 +61,45 @@
                 })
             })
 
-            app.ports.startRealm.subscribe(function (jwt) {
-                const app = new window.Realm.App({ id: "teo-web-ogsac" })
-
-                const credentials = Realm.Credentials.jwt(jwt);
-
-                app.logIn(credentials)
+            app.ports.createEvent.subscribe(withRealm(function ({ realmUser }, value) {
+                const events = getEventsCollection(realmUser)
+                console.log('INSERT DOC', value)
+                events.insertOne(value)
                     .then(function (res) {
-                        const mongo = app.currentUser.mongoClient("Cluster0")
-                        const events = mongo.db("public_db").collection("events")
+                        console.log('inserted', res)
+                    })
+                    .catch(function (err) {
+                        console.error('insert failed', err)
+                    })
+            }))
 
-                        events.insertOne({
-                            name: "Test Event",
-                            game: "Mortal Kombat"
-                        })
-                            .then(function (insertRes) {
-                                console.log('SUCCESS: ', insertRes)
-                            })
-                            .catch(function (err) {
-                                console.log('ERROR: ', err)
-                            })
+            app.ports.requestEvents.subscribe(withRealm(function ({ realmUser }) {
+                const events = getEventsCollection(realmUser)
+
+                events.find()
+                    .then(function (res) {
+                        console.log('events', res)
                     })
                     .catch(function (err) {
                         console.error(err)
+                    })
+            }))
+
+            app.ports.startRealm.subscribe(function (jwt) {
+                const realmApp = new window.Realm.App({ id: "teo-web-ogsac" })
+
+                const credentials = Realm.Credentials.jwt(jwt);
+
+                realmApp.logIn(credentials)
+                    .then(function (realmUser) {
+                        window.realmApp = realmApp
+                        _resolveRealm({ realmUser, realmApp })
+                    })
+                    .catch(function (err) {
+                        console.error(err)
+                        // TODO: this is a fairly fatal error
+                        // should probably trigger a port to send
+                        // the user to login
                     })
             })
         })

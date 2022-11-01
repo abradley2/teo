@@ -214,7 +214,7 @@ authorize = do
 
     token <- lift $ createJWT user
 
-    ScottyT.json $ AuthorizeResponse reqBody.userId True token
+    ScottyT.json $ AuthorizeResponse reqBody.userId token
 
 checkAuth :: ActionT LazyText.Text Action ()
 checkAuth = do
@@ -254,12 +254,12 @@ checkAuth = do
                     Just u -> lift $ Just <$> createJWT u
                     _ -> pure Nothing
 
-            ScottyT.json $ CheckAuthResponse (isJust authTokenResult) token
+            ScottyT.json $ CheckAuthResponse ((.userId) <$> user) token
         Nothing -> do
             Action.logDebug
                 logger
                 "User doesn't have auth token, verified that they are not authorized"
-            ScottyT.json $ CheckAuthResponse False Nothing
+            ScottyT.json $ CheckAuthResponse Nothing Nothing
 
 getOrCreateProfile :: LoggingContext -> Text -> Action User
 getOrCreateProfile ctx userId =

@@ -1,0 +1,43 @@
+{
+    "collection": "events",
+    "database": "public_db",
+    "roles": [
+        {
+            "name": "default_user",
+            "apply_when": {
+                "%%true": {
+                    "%function": {
+                        "arguments": [
+                            "%%user",
+                            "%%args"
+                        ],
+                        "name": "checkUser"
+                    }
+                }
+            },
+            "fields": {
+                "game": {
+                    "write": true,
+                    "read": true
+                },
+                "name": {
+                    "write": true,
+                    "read": true
+                },
+                "userId": {
+                    "write": true,
+                    "read": true
+                }
+            },
+            "read": true,
+            "write": true,
+            "insert": true,
+            "delete": true,
+            "search": true,
+            "additional_fields": {
+                "write": true,
+                "read": true
+            }
+        }
+    ]
+}
