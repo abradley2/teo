@@ -11,28 +11,8 @@
         "type": "string",
         "required": true,
         "permissions": {
-            "read": {
-                "%%true": {
-                    "%function": {
-                        "arguments": [
-                            "%%user",
-                            "%%root"
-                        ],
-                        "name": "checkUser"
-                    }
-                }
-            },
-            "write": {
-                "%%true": {
-                    "%function": {
-                        "arguments": [
-                            "%%user",
-                            "%%root"
-                        ],
-                        "name": "checkUser"
-                    }
-                }
-            }
+            "read": true,
+            "write": true
         }
     }
 }

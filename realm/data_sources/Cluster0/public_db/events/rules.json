@@ -9,7 +9,7 @@
                     "%function": {
                         "arguments": [
                             "%%user",
-                            "%%args"
+                            "%%root"
                         ],
                         "name": "checkUser"
                     }
