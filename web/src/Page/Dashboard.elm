@@ -97,14 +97,18 @@ init user shared =
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Ports.receiveData
-        (\( key, value ) ->
-            if key == dataKey then
-                ReceivedData value
+    Sub.batch
+        [ Ports.receiveData
+            (\( key, value ) ->
+                if key == dataKey then
+                    ReceivedData value
 
-            else
-                NoOp
-        )
+                else
+                    NoOp
+            )
+        , HttpData.httpResponseSub ReceivedEventsResponse (Decode.list eventDecoder)
+            |> Ports.requestEventsResponse
+        ]
 
 
 unload : Model -> Maybe AppAction

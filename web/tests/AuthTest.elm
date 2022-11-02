@@ -39,6 +39,10 @@ suite =
                         "GET"
                         Main.checkAuthUrl
                         """{"token": null, "userId": null}"""
+                    |> ProgramTest.fillIn
+                        Login.userIdInputId
+                        (Translations.Login.userIdInputLabel [ defaultLanguage ])
+                        "tony"
                     |> ProgramTest.clickButton (Translations.Login.buttonPrompt [ defaultLanguage ])
                     |> ProgramTest.simulateHttpOk
                         "POST"
@@ -69,6 +73,10 @@ suite =
                         "GET"
                         Main.checkAuthUrl
                         """{"token": null, "userId": null}"""
+                    |> ProgramTest.fillIn
+                        Login.userIdInputId
+                        (Translations.Login.userIdInputLabel [ defaultLanguage ])
+                        "tony"
                     |> ProgramTest.clickButton (Translations.Login.buttonPrompt [ defaultLanguage ])
                     |> ProgramTest.simulateHttpResponse
                         "POST"
@@ -76,5 +84,23 @@ suite =
                         Test.Http.networkError
                     |> ProgramTest.expectViewHas
                         [ Selector.text (Translations.Login.loginFailedMessage [ defaultLanguage ])
+                        ]
+        , test "Login page shows an error when user id is invalid" <|
+            \_ ->
+                testProgram
+                    |> TestApp.withBaseUrl
+                    |> TestApp.withSimulatedEffects (always Nothing)
+                    |> TestApp.startWithFlags identity
+                    |> ProgramTest.simulateHttpOk
+                        "GET"
+                        Main.checkAuthUrl
+                        """{"token": null, "userId": null}"""
+                    |> ProgramTest.fillIn
+                        Login.userIdInputId
+                        (Translations.Login.userIdInputLabel [ defaultLanguage ])
+                        "a"
+                    |> ProgramTest.clickButton (Translations.Login.buttonPrompt [ defaultLanguage ])
+                    |> ProgramTest.expectViewHas
+                        [ Selector.text (Translations.Login.userIdTooShortError [ defaultLanguage ])
                         ]
         ]

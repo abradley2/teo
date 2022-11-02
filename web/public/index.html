@@ -77,11 +77,17 @@
                 const events = getEventsCollection(realmUser)
 
                 events.find()
-                    .then(function (res) {
-                        console.log('events', res)
+                    .then(function (response) {
+                        app.ports.requestEventsResponse.send({
+                            status: "Success",
+                            response
+                        })
                     })
                     .catch(function (err) {
-                        console.error(err)
+                        app.ports.requestEventsResponse.send({
+                            status: "Error",
+                            error: err.msg
+                        })
                     })
             }))
 

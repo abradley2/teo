@@ -28,11 +28,22 @@ defaultLanguage =
                         , ( "login failed message"
                           , I18Next.string "Login failed. Please try again."
                           )
+                        , ( "user id empty error"
+                          , I18Next.string "User ID may not be empty"
+                          )
                         , ( "user id input generic error"
                           , I18Next.string "Failed to login"
                           )
                         , ( "user id input label"
                           , I18Next.string "Enter a (completely fake) user ID"
+                          )
+                        , ( "user id too long error"
+                          , I18Next.string
+                                "User ID must be at most 50 characters long"
+                          )
+                        , ( "user id too short error"
+                          , I18Next.string
+                                "User ID must be at least 2 characters long"
                           )
                         ]
                   )

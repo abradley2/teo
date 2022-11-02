@@ -1,4 +1,4 @@
-module Page.Login exposing (Effect(..), LoginResponse, Model, Msg(..), encodeLoginRequest, init, loginResponseDecoder, loginUrl, perform, unload, update, view)
+module Page.Login exposing (..)
 
 import AppAction exposing (AppAction, RealmJwt(..))
 import Css
@@ -37,14 +37,14 @@ encodeLoginRequest loginRequest =
         ]
 
 
-formValidator : FormValidator Model LoginRequest
-formValidator =
+formValidator : List Translations -> FormValidator Model LoginRequest
+formValidator language =
     Verify.Form.validate LoginRequest
         |> Verify.Form.verify
             .userId
-            (String.Verify.notBlank "user id may not be empty"
-                |> Verify.compose (String.Verify.minLength 2 "user id must be at least 2 characters long")
-                |> Verify.compose (String.Verify.maxLength 50 "user id must be at most 20 characters long")
+            (String.Verify.notBlank (Translations.Login.userIdEmptyError language)
+                |> Verify.compose (String.Verify.minLength 2 (Translations.Login.userIdTooShortError language))
+                |> Verify.compose (String.Verify.maxLength 50 (Translations.Login.userIdTooLongError language))
                 |> Verify.Form.liftValidator (\errors form -> { form | userIdErrors = Just errors })
             )
 
@@ -117,7 +117,7 @@ update shared msg model =
             )
 
         LoginClicked ->
-            case Verify.Form.run formValidator model of
+            case Verify.Form.run (formValidator shared.language) model of
                 Ok loginRequest ->
                     let
                         tracker : Maybe String
@@ -160,26 +160,9 @@ unload model =
     Just <| AppAction.cancelRequest model.loginRequest
 
 
-userIdInput : Shared -> Model -> ( String, Html Msg )
-userIdInput shared model =
-    let
-        id =
-            "login-user-text-input"
-    in
-    TextInput.config
-        { id = id
-        , label = Translations.Login.userIdInputLabel shared.language
-        , theme = shared.theme
-        }
-        |> TextInput.withValue model.userId
-        |> TextInput.withOnInput (Just UserIdChanged)
-        |> TextInput.withErrorMessage
-            (model.loginRequest
-                |> HttpData.toFailure
-                |> Maybe.map (Translations.Login.userIdInputGenericError shared.language |> always)
-            )
-        |> TextInput.view
-        |> Tuple.pair id
+userIdInputId : String
+userIdInputId =
+    "login-user-text-input"
 
 
 view : Shared -> Model -> Html Msg
@@ -205,7 +188,19 @@ view shared model =
         ]
         [ H.div
             []
-            [ Tuple.second (userIdInput shared model)
+            [ TextInput.config
+                { id = userIdInputId
+                , label = Translations.Login.userIdInputLabel shared.language
+                , theme = shared.theme
+                }
+                |> TextInput.withValue model.userId
+                |> TextInput.withOnInput (Just UserIdChanged)
+                |> TextInput.withErrorMessage
+                    (model.loginRequest
+                        |> HttpData.toFailure
+                        |> Maybe.map (Translations.Login.userIdInputGenericError shared.language |> always)
+                    )
+                |> TextInput.view
             ]
         , H.div
             [ A.css

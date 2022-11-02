@@ -307,6 +307,24 @@ update msg model =
                         |> Tuple3.mapThird EffectLogin
             in
             withAppAction appAction ( { model | page = nextPage }, effect )
+                |> (\( nextModel, nextEffect ) ->
+                        case loginMsg of
+                            Login.ReceivedLoginResponse (Ok res) ->
+                                let
+                                    user : User
+                                    user =
+                                        { userId = UserId res.userId }
+                                in
+                                ( { nextModel | user = HttpData.Success (Just user) }
+                                , nextEffect
+                                )
+
+                            Login.ReceivedLoginResponse (Err err) ->
+                                ( { nextModel | user = HttpData.Failure err }, nextEffect )
+
+                            _ ->
+                                ( nextModel, nextEffect )
+                   )
 
         ( GotLoginMsg _, _ ) ->
             ( model, EffectNone )
