@@ -50,9 +50,11 @@ class LoginPage extends ConsumerWidget {
         ),
         body: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            TextField(onChanged: (String nextValue) {
-              ref.read(loginFormProvider.notifier).setUserId(nextValue);
-            }),
+            SizedBox(
+                width: 200,
+                child: TextField(onChanged: (String nextValue) {
+                  ref.read(loginFormProvider.notifier).setUserId(nextValue);
+                })),
             ElevatedButton(
                 child: const Text("Toggle Login"),
                 onPressed: () {
