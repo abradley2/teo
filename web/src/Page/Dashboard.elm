@@ -140,7 +140,7 @@ update user shared msg model =
             ( { model | events = Failure err }
             , Just
                 (AppAction.ShowNotification
-                    AppAction.NotificationError
+                    (AppAction.NotificationError << Just <| HttpData.httpErrorToString err)
                     (Translations.Dashboard.eventFetchFailure shared.language)
                 )
             , EffectNone

@@ -24,6 +24,9 @@ port pushUrl : String -> Cmd msg
 port startRealm : String -> Cmd msg
 
 
+port logError : String -> Cmd msg
+
+
 
 -- Realm ports
 

@@ -27,7 +27,7 @@ cancelRequest data =
 
 
 type Notification
-    = NotificationError
+    = NotificationError (Maybe String)
 
 
 type RealmJwt

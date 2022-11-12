@@ -44,6 +44,7 @@ type Effect
     | EffectPushUrl String
     | EffectReplaceUrl String
     | EffectStartRealm RealmJwt
+    | EffectLogError String
     | EffectBatch (List Effect)
 
 
@@ -110,6 +111,9 @@ perform effect =
 
         EffectLogin subEffect ->
             Login.perform subEffect |> Cmd.map GotLoginMsg
+
+        EffectLogError errorLog ->
+            Ports.logError errorLog
 
         EffectBatch effects ->
             Cmd.batch (List.map perform effects)
@@ -241,7 +245,11 @@ withAppAction action ( model, effect ) =
                     ( { model
                         | notification = Just ( notificationType, message )
                       }
-                    , Nothing
+                    , case notificationType of
+                        AppAction.NotificationError (Just errorLog) ->
+                            (Just <| EffectLogError errorLog )
+                        _ ->
+                            Nothing
                     )
 
                 Just (AppAction.ReplaceUrl url) ->
@@ -342,12 +350,12 @@ update msg model =
             , EffectReplaceUrl "/app/login"
             )
 
-        ( CheckedUserAuthorization _ (Err _), _ ) ->
+        ( CheckedUserAuthorization _ (Err err), _ ) ->
             ( model, EffectNone )
                 |> withAppAction
                     (Just <|
                         AppAction.ShowNotification
-                            AppAction.NotificationError
+                            (AppAction.NotificationError << Just <| HttpData.httpErrorToString err)
                             (Translations.checkAuthorizationError model.shared.language)
                     )
 

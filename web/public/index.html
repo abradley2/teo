@@ -8,6 +8,7 @@
     <title>Document</title>
     <link rel="stylesheet" type="text/css" href="/css/base.css">
     <script src="https://unpkg.com/realm-web/dist/bundle.iife.js"></script>
+    <script src="/js/cuid.min.js"></script>
 </head>
 
 <body>
@@ -41,8 +42,12 @@
                 flags: {
                     url: window.location.href,
                     languages,
-                    clientId: crypto.randomUUID()
+                    clientId: cuid()
                 }
+            })
+
+            app.ports.logError.subscribe(function (err) {
+                console.error(err)
             })
 
             app.ports.requestData.subscribe(function (k) {

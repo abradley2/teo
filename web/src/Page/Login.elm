@@ -140,7 +140,7 @@ update shared msg model =
             ( { model | loginRequest = Failure err }
             , Just <|
                 AppAction.ShowNotification
-                    AppAction.NotificationError
+                    (AppAction.NotificationError << Just <| HttpData.httpErrorToString err)
                     (Translations.Login.loginFailedMessage shared.language)
             , EffectNone
             )

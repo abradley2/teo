@@ -1,4 +1,4 @@
-module HttpData exposing (HttpData(..), httpResponseSub, toFailure)
+module HttpData exposing (HttpData(..), httpResponseSub, toFailure, httpErrorToString)
 
 import Http
 import Json.Decode as Decode exposing (Decoder)
@@ -56,3 +56,22 @@ httpResponseSub toMsg decoder =
         >> Result.mapError (Decode.errorToString >> Http.BadBody)
         >> ResultX.join
         >> toMsg
+
+
+httpErrorToString : Http.Error -> String
+httpErrorToString err =
+    case err of
+        Http.BadBody msg ->
+            "Bad body: " ++ msg
+
+        Http.BadStatus msg ->
+            "Unexpected status code: " ++ String.fromInt msg
+
+        Http.Timeout ->
+            "Request timed out"
+
+        Http.NetworkError ->
+            "Network error"
+
+        Http.BadUrl msg ->
+            "Bad url: " ++ msg

@@ -65,6 +65,9 @@ perform effect =
         Main.EffectStartRealm (RealmJwt jwt) ->
             SimulatedPorts.send "startRealm" (Encode.string jwt)
 
+        Main.EffectLogError errLog ->
+            SimulatedPorts.send "logError" (Encode.string errLog)
+
         Main.EffectBatch effects ->
             List.foldr
                 (\eff batch -> SimulatedCmd.batch [ perform eff, batch ])
