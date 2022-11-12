@@ -1,4 +1,4 @@
-module Page.Dashboard exposing (Effect(..), Model, Msg(..), init, perform, subscriptions, unload, update, view)
+module Page.Dashboard exposing (..)
 
 import AppAction exposing (AppAction)
 import Html.Styled as H exposing (Html)
@@ -10,6 +10,7 @@ import Ports
 import Shared exposing (Shared)
 import Translations.Dashboard
 import User exposing (User)
+import View.TextInput as TextInput
 
 
 type alias Event =
@@ -33,6 +34,7 @@ eventDecoder =
 type Msg
     = NoOp
     | ReceivedEventsResponse (Result Http.Error (List Event))
+    | EventCodeEntryChanged String
     | ReceivedData Value
 
 
@@ -64,7 +66,13 @@ perform effect =
 
 type alias Model =
     { events : HttpData (List Event)
+    , eventCodeEntry : String
     }
+
+
+eventCodeEntryId : String
+eventCodeEntryId =
+    "event-code-entry-input"
 
 
 dataKey : String
@@ -80,6 +88,7 @@ init user shared =
             "get-events-request"
     in
     ( { events = Loading (Just getEventsTracker)
+      , eventCodeEntry = ""
       }
     , Just (AppAction.RequestData dataKey)
     , EffectBatch
@@ -123,7 +132,38 @@ unload model =
 
 update : User -> Shared -> Msg -> Model -> ( Model, Maybe AppAction, Effect )
 update user shared msg model =
-    ( model, Nothing, EffectNone )
+    case msg of
+        NoOp ->
+            ( model, Nothing, EffectNone )
+
+        ReceivedEventsResponse (Err err) ->
+            ( { model | events = Failure err }
+            , Just
+                (AppAction.ShowNotification
+                    AppAction.NotificationError
+                    (Translations.Dashboard.eventFetchFailure shared.language)
+                )
+            , EffectNone
+            )
+
+        ReceivedEventsResponse (Ok res) ->
+            ( { model
+                | events = Success res
+              }
+            , Nothing
+            , EffectNone
+            )
+
+        ReceivedData _ ->
+            ( model, Nothing, EffectNone )
+
+        EventCodeEntryChanged eventCodeEntry ->
+            ( { model
+                | eventCodeEntry = eventCodeEntry
+              }
+            , Nothing
+            , EffectNone
+            )
 
 
 view : Shared -> Model -> Html Msg
@@ -132,4 +172,19 @@ view shared model =
         []
         [ H.text <|
             Translations.Dashboard.greeting shared.language { name = "Tony" }
+        , H.div
+            []
+            [ let
+                config : TextInput.InitialConfig
+                config =
+                    { theme = shared.theme
+                    , label = "Event Code"
+                    , id = eventCodeEntryId
+                    }
+              in
+              TextInput.config config
+                |> TextInput.withValue model.eventCodeEntry
+                |> TextInput.withOnInput (Just EventCodeEntryChanged)
+                |> TextInput.view
+            ]
         ]

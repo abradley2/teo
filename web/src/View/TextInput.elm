@@ -1,10 +1,10 @@
-module View.TextInput exposing (Config, InitialConfig, config, view, withErrorMessage, withOnInput, withValue)
+module View.TextInput exposing (Config, InitialConfig, config, formatMultipleErrors, view, withErrorMessage, withOnInput, withValue)
 
 import Css
 import Html.Styled as H exposing (Html)
 import Html.Styled.Attributes as A
 import Html.Styled.Events as E
-import Maybe.Extra as Maybe
+import Maybe.Extra as MaybeX
 import Theme exposing (Theme)
 
 
@@ -37,6 +37,11 @@ withErrorMessage errorMessage (Config cfg) =
     Config { cfg | errorMessage = errorMessage }
 
 
+formatMultipleErrors : ( String, List String ) -> String
+formatMultipleErrors ( fst, rest ) =
+    String.join ". " (fst :: rest)
+
+
 type alias InitialConfig =
     { label : String
     , id : String
@@ -61,12 +66,16 @@ view (Config cfg) =
     let
         disabled : Bool
         disabled =
-            Maybe.isNothing cfg.onInput
+            MaybeX.isNothing cfg.onInput
+
+        errorId =
+            cfg.id ++ "--error"
     in
     H.div
         [ A.css
             [ Css.display Css.inlineFlex
             , Css.flexDirection Css.column
+            , Css.position Css.relative
             ]
         ]
         [ H.label
@@ -82,6 +91,13 @@ view (Config cfg) =
             ([ A.disabled disabled
              , A.value cfg.value
              , A.id cfg.id
+             , A.attribute "aria-invalid" <|
+                if MaybeX.isJust cfg.errorMessage then
+                    "true"
+
+                else
+                    "false"
+             , A.attribute "aria-errormessage" errorId
              , A.css
                 [ Css.padding2 (Css.rem 0.5) (Css.rem 0.5)
                 , Css.fontSize (Css.rem 1)
@@ -100,4 +116,15 @@ view (Config cfg) =
                    )
             )
             []
+        , H.div
+            [ A.id errorId
+            , A.attribute "aria-live" "polite"
+            ]
+            [ case cfg.errorMessage of
+                Just err ->
+                    H.text err
+
+                Nothing ->
+                    H.text ""
+            ]
         ]

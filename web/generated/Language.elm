@@ -18,7 +18,11 @@ defaultLanguage =
                   )
                 , ( "dashboard"
                   , I18Next.object
-                        [ ( "greeting", I18Next.string "Hello, {{name}}" ) ]
+                        [ ( "event fetch failure"
+                          , I18Next.string "Failed to fetch events"
+                          )
+                        , ( "greeting", I18Next.string "Hello, {{name}}" )
+                        ]
                   )
                 , ( "login"
                   , I18Next.object

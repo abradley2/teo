@@ -2,7 +2,8 @@
     "check authorization error": "There was an error when checking your user authorization.",
     "page not found message": "Sorry, the page you are looking for doesn't exist",
     "dashboard": {
-        "greeting": "Hello, {{name}}"
+        "greeting": "Hello, {{name}}",
+        "event fetch failure": "Failed to fetch events"
     },
     "login": {
         "button prompt": "Click here to login",

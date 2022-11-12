@@ -9,6 +9,7 @@ import HttpData exposing (HttpData(..))
 import I18Next exposing (Translations)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode exposing (Value)
+import Maybe.Extra as MaybeX
 import Shared exposing (ClientId, Shared)
 import String.Verify
 import Theme exposing (Theme)
@@ -196,9 +197,12 @@ view shared model =
                 |> TextInput.withValue model.userId
                 |> TextInput.withOnInput (Just UserIdChanged)
                 |> TextInput.withErrorMessage
-                    (model.loginRequest
+                    ((model.loginRequest
                         |> HttpData.toFailure
                         |> Maybe.map (Translations.Login.userIdInputGenericError shared.language |> always)
+                     )
+                        |> MaybeX.or
+                            (Maybe.map TextInput.formatMultipleErrors model.userIdErrors)
                     )
                 |> TextInput.view
             ]
