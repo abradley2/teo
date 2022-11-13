@@ -1,10 +1,13 @@
-module HttpData exposing (HttpData(..), httpErrorToString, httpResponseSub, toFailure)
+module HttpData exposing (HttpData(..), RequestTag(..), httpErrorToString, httpResponseSub, toFailure)
 
 import Http
 import Json.Decode as Decode exposing (Decoder)
-import Json.Encode exposing (Value)
+import Json.Encode as Encode exposing (Value)
 import Result.Extra as ResultX
 
+
+type RequestTag
+    = RequestTag String
 
 type HttpData a
     = NotAsked
@@ -13,8 +16,8 @@ type HttpData a
     | Failure Http.Error
 
 
-httpDataDecoder : String -> Decoder a -> Decoder (Maybe (Result Http.Error a))
-httpDataDecoder tag responseDecoder =
+httpDataDecoder : RequestTag -> Decoder a -> Decoder (Maybe (Result Http.Error a))
+httpDataDecoder (RequestTag tag) responseDecoder =
     Decode.value
         |> Decode.andThen
             (\value ->
@@ -58,11 +61,11 @@ toFailure data =
             Nothing
 
 
-httpResponseSub : String -> (Maybe (Result Http.Error a) -> msg) -> Decoder a -> Value -> msg
-httpResponseSub tag toMsg decoder =
+httpResponseSub : { tag : RequestTag, ignoreMsg : msg, toMsg : Result Http.Error a -> msg } -> Decoder a -> Value -> msg
+httpResponseSub { tag, ignoreMsg, toMsg } decoder =
     Decode.decodeValue (httpDataDecoder tag decoder)
-        >> Result.mapError (\err -> toMsg (Just << Err <| Http.BadBody (Decode.errorToString err)))
-        >> Result.map toMsg
+        >> Result.mapError (\err -> toMsg (Err <| Http.BadBody (Decode.errorToString err)))
+        >> Result.map (Maybe.map toMsg >> Maybe.withDefault ignoreMsg)
         >> ResultX.merge
 
 

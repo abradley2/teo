@@ -66,26 +66,26 @@
                 })
             })
 
-            app.ports.createEvent.subscribe(withRealm(function ({ realmUser }, { tag, value }) {
-                const events = getEventsCollection(realmUser)
+            // app.ports.createEvent.subscribe(withRealm(function ({ realmUser }, { tag, value }) {
+            //     const events = getEventsCollection(realmUser)
 
-                events.insertOne(value)
-                    .then(convertBson)
-                    .then(function (response) {
-                        app.ports.createEventResponse.send({
-                            status: "Success",
-                            tag,
-                            response
-                        })
-                    })
-                    .catch(function (err) {
-                        app.ports.createEventResponse.send({
-                            status: "Error",
-                            tag,
-                            error: err.msg
-                        })
-                    })
-            }))
+            //     events.insertOne(value)
+            //         .then(convertBson)
+            //         .then(function (response) {
+            //             app.ports.createEventResponse.send({
+            //                 status: "Success",
+            //                 tag,
+            //                 response
+            //             })
+            //         })
+            //         .catch(function (err) {
+            //             app.ports.createEventResponse.send({
+            //                 status: "Error",
+            //                 tag,
+            //                 error: err.msg
+            //             })
+            //         })
+            // }))
 
             app.ports.requestParticipatingEvents.subscribe(withRealm(function ({ realmUser }, { tag, userId }) {
                 const events = getEventsCollection(realmUser)

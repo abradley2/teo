@@ -3,7 +3,7 @@ module Page.Dashboard exposing (..)
 import AppAction exposing (AppAction)
 import Html.Styled as H exposing (Html)
 import Http
-import HttpData exposing (HttpData(..))
+import HttpData exposing (HttpData(..), RequestTag(..))
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode exposing (Value)
 import Ports
@@ -34,33 +34,34 @@ eventDecoder =
 type Msg
     = NoOp
     | ReceivedEventsResponse (Result Http.Error (List Event))
+    | ReceivedParticipatingEventsResponse (Result Http.Error (List Event))
     | EventCodeEntryChanged String
     | ReceivedData Value
 
 
 type Effect
     = EffectNone
-    | EffectRequestEvents UserId
-    | EffectRequestParticipatingEvents UserId
+    | EffectRequestEvents RequestTag UserId
+    | EffectRequestParticipatingEvents RequestTag UserId
     | EffectBatch (List Effect)
 
 
 perform : Effect -> Cmd Msg
 perform effect =
     case effect of
-        EffectRequestEvents (UserId userId) ->
+        EffectRequestEvents (RequestTag tag) (UserId userId) ->
             Ports.requestEvents
                 (Encode.object
                     [ ( "userId", Encode.string userId )
-                    , ( "tag", Encode.string dataKey )
+                    , ( "tag", Encode.string tag )
                     ]
                 )
 
-        EffectRequestParticipatingEvents (UserId userId) ->
+        EffectRequestParticipatingEvents (RequestTag tag) (UserId userId) ->
             Ports.requestParticipatingEvents
                 (Encode.object
                     [ ( "userId", Encode.string userId )
-                    , ( "tag", Encode.string dataKey )
+                    , ( "tag", Encode.string tag )
                     ]
                 )
 
@@ -76,6 +77,7 @@ perform effect =
 
 type alias Model =
     { events : HttpData (List Event)
+    , participatingEvents : HttpData (List Event)
     , eventCodeEntry : String
     }
 
@@ -92,19 +94,25 @@ dataKey =
 
 init : User -> Shared -> ( Model, Maybe AppAction, Effect )
 init user shared =
-    let
-        getEventsTracker : String
-        getEventsTracker =
-            "get-events-request"
-    in
-    ( { events = Loading (Just getEventsTracker)
+    ( { events = Loading Nothing
+      , participatingEvents = Loading Nothing
       , eventCodeEntry = ""
       }
     , Just (AppAction.RequestData dataKey)
     , EffectBatch
-        [ EffectRequestEvents user.userId
+        [ EffectRequestEvents (RequestTag "Page.Dashboard.requestEvents") user.userId
         ]
     )
+
+
+requestEventsTag : RequestTag
+requestEventsTag =
+    RequestTag "Page.Dashboard.requestEvents"
+
+
+requestParticipatingEventsTag : RequestTag
+requestParticipatingEventsTag =
+    RequestTag "Page.Dashboard.requestParticipatingEvents"
 
 
 subscriptions : Model -> Sub Msg
@@ -118,10 +126,20 @@ subscriptions _ =
                 else
                     NoOp
             )
-        , HttpData.httpResponseSub dataKey
-            (Maybe.map ReceivedEventsResponse >> Maybe.withDefault NoOp)
+        , HttpData.httpResponseSub
+            { tag = requestEventsTag
+            , ignoreMsg = NoOp
+            , toMsg = ReceivedEventsResponse
+            }
             (Decode.list eventDecoder)
             |> Ports.requestEventsResponse
+        , HttpData.httpResponseSub
+            { tag = requestParticipatingEventsTag
+            , ignoreMsg = NoOp
+            , toMsg = ReceivedParticipatingEventsResponse
+            }
+            (Decode.list eventDecoder)
+            |> Ports.requestParticipatingEventsResponse
         ]
 
 
@@ -156,6 +174,25 @@ update user shared msg model =
                 | events = Success res
               }
             , Nothing
+            , EffectNone
+            )
+
+        ReceivedParticipatingEventsResponse (Ok res) ->
+            ( { model
+                | participatingEvents = Success res
+              }
+            , Nothing
+            , EffectNone
+            )
+
+        ReceivedParticipatingEventsResponse (Err err) ->
+            ( { model
+                | participatingEvents = Failure err
+              }
+            , Just <|
+                AppAction.ShowNotification
+                    (AppAction.NotificationError (Just <| HttpData.httpErrorToString err))
+                    (Translations.Dashboard.eventFetchFailure shared.language)
             , EffectNone
             )
 
