@@ -37,7 +37,13 @@ port createEvent : Value -> Cmd msg
 port createEventResponse : (Value -> msg) -> Sub msg
 
 
-port requestEvents : () -> Cmd msg
+port requestEvents : Value -> Cmd msg
 
 
 port requestEventsResponse : (Value -> msg) -> Sub msg
+
+
+port requestParticipatingEvents : Value -> Cmd msg
+
+
+port requestParticipatingEventsResponse : (Value -> msg) -> Sub msg

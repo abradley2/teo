@@ -66,31 +66,69 @@
                 })
             })
 
-            app.ports.createEvent.subscribe(withRealm(function ({ realmUser }, value) {
+            app.ports.createEvent.subscribe(withRealm(function ({ realmUser }, { tag, value }) {
                 const events = getEventsCollection(realmUser)
-                console.log('INSERT DOC', value)
+
                 events.insertOne(value)
-                    .then(function (res) {
-                        console.log('inserted', res)
+                    .then(convertBson)
+                    .then(function (response) {
+                        app.ports.createEventResponse.send({
+                            status: "Success",
+                            tag,
+                            response
+                        })
                     })
                     .catch(function (err) {
-                        console.error('insert failed', err)
+                        app.ports.createEventResponse.send({
+                            status: "Error",
+                            tag,
+                            error: err.msg
+                        })
                     })
             }))
 
-            app.ports.requestEvents.subscribe(withRealm(function ({ realmUser }) {
+            app.ports.requestParticipatingEvents.subscribe(withRealm(function ({ realmUser }, { tag, userId }) {
                 const events = getEventsCollection(realmUser)
 
-                events.find()
+                events.find({
+                    $where: function () {
+                        if (Array.isArray(this.participants) === false) return false
+                        return this.participants.includes(userId)
+                    }
+                })
+                    .then(convertBson)
+                    .then(function (response) {
+                        app.ports.requestParticipatingEventsResponse.send({
+                            status: "Success",
+                            tag,
+                            response
+                        })
+                    })
+                    .catch(function (err) {
+                        app.ports.requestParticipatingEventsResponse.send({
+                            status: "Error",
+                            tag,
+                            error: err.msg
+                        })
+                    })
+            }))
+
+            app.ports.requestEvents.subscribe(withRealm(function ({ realmUser }, { tag, userId }) {
+                const events = getEventsCollection(realmUser)
+
+                events.find({ userId })
+                    .then(convertBson)
                     .then(function (response) {
                         app.ports.requestEventsResponse.send({
                             status: "Success",
+                            tag,
                             response
                         })
                     })
                     .catch(function (err) {
                         app.ports.requestEventsResponse.send({
                             status: "Error",
+                            tag,
                             error: err.msg
                         })
                     })
@@ -132,6 +170,10 @@
                 node = node.parentNode
             }
         })
+
+        function convertBson(obj) {
+            return JSON.parse(JSON.stringify(obj))
+        }
     </script>
 </body>
 

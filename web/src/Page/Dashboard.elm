@@ -9,7 +9,7 @@ import Json.Encode as Encode exposing (Value)
 import Ports
 import Shared exposing (Shared)
 import Translations.Dashboard
-import User exposing (User)
+import User exposing (User, UserId(..))
 import View.TextInput as TextInput
 
 
@@ -40,19 +40,29 @@ type Msg
 
 type Effect
     = EffectNone
-    | EffectRequestEvents
-    | EffectCreateEvent Value
+    | EffectRequestEvents UserId
+    | EffectRequestParticipatingEvents UserId
     | EffectBatch (List Effect)
 
 
 perform : Effect -> Cmd Msg
 perform effect =
     case effect of
-        EffectRequestEvents ->
-            Ports.requestEvents ()
+        EffectRequestEvents (UserId userId) ->
+            Ports.requestEvents
+                (Encode.object
+                    [ ( "userId", Encode.string userId )
+                    , ( "tag", Encode.string dataKey )
+                    ]
+                )
 
-        EffectCreateEvent value ->
-            Ports.createEvent value
+        EffectRequestParticipatingEvents (UserId userId) ->
+            Ports.requestParticipatingEvents
+                (Encode.object
+                    [ ( "userId", Encode.string userId )
+                    , ( "tag", Encode.string dataKey )
+                    ]
+                )
 
         EffectBatch effects ->
             List.foldr
@@ -92,14 +102,7 @@ init user shared =
       }
     , Just (AppAction.RequestData dataKey)
     , EffectBatch
-        [ EffectRequestEvents
-        , EffectCreateEvent
-            (Encode.object
-                [ ( "userId", Encode.string (User.userId user) )
-                , ( "name", Encode.string "Test tournament" )
-                , ( "game", Encode.string "Warhammer" )
-                ]
-            )
+        [ EffectRequestEvents user.userId
         ]
     )
 
@@ -115,7 +118,9 @@ subscriptions _ =
                 else
                     NoOp
             )
-        , HttpData.httpResponseSub ReceivedEventsResponse (Decode.list eventDecoder)
+        , HttpData.httpResponseSub dataKey
+            (Maybe.map ReceivedEventsResponse >> Maybe.withDefault NoOp)
+            (Decode.list eventDecoder)
             |> Ports.requestEventsResponse
         ]
 
