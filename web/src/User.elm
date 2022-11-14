@@ -1,15 +1,8 @@
-module User exposing (User, UserId(..), userId)
+module User exposing (User, UserId(..))
 
 
 type UserId
     = UserId String
-
-
-userId : User -> String
-userId user =
-    case user.userId of
-        UserId id ->
-            id
 
 
 type alias User =

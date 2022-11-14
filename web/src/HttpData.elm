@@ -9,6 +9,7 @@ import Result.Extra as ResultX
 type RequestTag
     = RequestTag String
 
+
 type HttpData a
     = NotAsked
     | Loading (Maybe String)
