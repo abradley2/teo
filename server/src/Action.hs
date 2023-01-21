@@ -25,7 +25,7 @@ module Action (
     logWarn,
 ) where
 
-import Control.Monad.Catch (try)
+import Control.Exception.Safe (try)
 import Control.Monad.Except (liftEither)
 import Control.Monad.Logger (LoggingT (LoggingT))
 import Control.Monad.Logger qualified as Logger
