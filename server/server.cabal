@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.4.
+-- This file has been generated from package.yaml by hpack version 0.35.1.
 --
 -- see: https://github.com/sol/hpack
 
@@ -65,6 +65,7 @@ library
     , mtl
     , network
     , relude
+    , safe-exceptions
     , scotty
     , text
     , time
@@ -101,6 +102,7 @@ executable server-exe
     , mtl
     , network
     , relude
+    , safe-exceptions
     , scotty
     , server
     , text
@@ -139,6 +141,7 @@ test-suite teo-test
     , mtl
     , network
     , relude
+    , safe-exceptions
     , scotty
     , teo
     , text

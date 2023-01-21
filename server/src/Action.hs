@@ -128,10 +128,10 @@ withRedisAction' action = do
     redisConn <- asks (\e -> e.redisConn)
     liftIO . Redis.runRedis redisConn $ action
 
-withMongoAction :: MongoDb.Action Action a -> ActionT LazyText.Text Action (Either MongoDb.Failure a)
+withMongoAction :: MongoDb.Action Action a -> ActionT LazyText.Text Action (Either SomeException a)
 withMongoAction = lift . withMongoAction'
 
-withMongoAction' :: MongoDb.Action Action a -> Action (Either MongoDb.Failure a)
+withMongoAction' :: MongoDb.Action Action a -> Action (Either SomeException a)
 withMongoAction' action = do
     pipe <- asks (\e -> e.mongoPipe)
     try $ MongoDb.access pipe MongoDb.master "public_db" action

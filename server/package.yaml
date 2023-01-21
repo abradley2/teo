@@ -45,6 +45,7 @@ dependencies:
 - time
 - containers
 - mtl
+- safe-exceptions
 
 ghc-options:
 - -Wall

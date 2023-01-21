@@ -268,6 +268,8 @@ getOrCreateProfile ctx userId =
 
         Action.logDebug' logger "Updating or creating user profile in mongo"
 
+        Action.logDebug' logger "Fetching existing user or defaulting"
+
         user <-
             ( fromMaybe $
                     Documents.User.User
@@ -276,6 +278,8 @@ getOrCreateProfile ctx userId =
                         }
                 )
                 <$> getProfileById ctx userId
+
+        Action.logDebug' logger "Saving user to mongo"
 
         _ <-
             Action.withMongoAction'
