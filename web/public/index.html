@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>TEO</title>
     <link rel="stylesheet" type="text/css" href="/css/base.css">
     <script src="https://unpkg.com/realm-web/dist/bundle.iife.js"></script>
     <script src="/js/cuid.min.js"></script>
@@ -91,9 +91,10 @@
                 const events = getEventsCollection(realmUser)
 
                 events.find({
-                    $where: function () {
-                        if (Array.isArray(this.participants) === false) return false
-                        return this.participants.includes(userId)
+                    participants: {
+                        $elemMatch: {
+                            $eq: userId
+                        }
                     }
                 })
                     .then(convertBson)
@@ -142,6 +143,8 @@
                 realmApp.logIn(credentials)
                     .then(function (realmUser) {
                         window.realmApp = realmApp
+                        window.realmUser = realmUser
+                        window.getCollection = (collection) => getCollection(collection)(realmUser)
                         _resolveRealm({ realmUser, realmApp })
                     })
                     .catch(function (err) {

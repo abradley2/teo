@@ -44,8 +44,16 @@ formValidator language =
         |> Verify.Form.verify
             .userId
             (String.Verify.notBlank (Translations.Login.userIdEmptyError language)
-                |> Verify.compose (String.Verify.minLength 2 (Translations.Login.userIdTooShortError language))
-                |> Verify.compose (String.Verify.maxLength 50 (Translations.Login.userIdTooLongError language))
+                |> Verify.compose
+                    (String.Verify.minLength
+                        2
+                        (Translations.Login.userIdTooShortError language)
+                    )
+                |> Verify.compose
+                    (String.Verify.maxLength
+                        50
+                        (Translations.Login.userIdTooLongError language)
+                    )
                 |> Verify.Form.liftValidator (\errors form -> { form | userIdErrors = Just errors })
             )
 
@@ -199,7 +207,10 @@ view shared model =
                 |> TextInput.withErrorMessage
                     ((model.loginRequest
                         |> HttpData.toFailure
-                        |> Maybe.map (Translations.Login.userIdInputGenericError shared.language |> always)
+                        |> Maybe.map
+                            (Translations.Login.userIdInputGenericError shared.language
+                                |> always
+                            )
                      )
                         |> MaybeX.or
                             (Maybe.map TextInput.formatMultipleErrors model.userIdErrors)

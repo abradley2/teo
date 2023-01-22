@@ -1,5 +1,16 @@
-input, select, textarea, button {
+@import url('/css/normalize.css');
+
+input,
+select,
+textarea,
+button {
     box-shadow: none;
     box-sizing: border-box;
     -moz-box-shadow: none;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
 }

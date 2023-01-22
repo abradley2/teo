@@ -100,7 +100,8 @@ init user shared =
       }
     , Just (AppAction.RequestData dataKey)
     , EffectBatch
-        [ EffectRequestEvents (RequestTag "Page.Dashboard.requestEvents") user.userId
+        [ EffectRequestEvents requestEventsTag user.userId
+        , EffectRequestParticipatingEvents requestParticipatingEventsTag user.userId
         ]
     )
 
