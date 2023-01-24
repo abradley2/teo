@@ -4,7 +4,6 @@ import Data.Aeson (ToJSON, (.=))
 import Data.Aeson qualified as Aeson
 import Data.Bson (Document, Field ((:=)))
 import Data.Bson qualified as Bson
-
 import Database.MongoDB (Collection)
 import Relude
 

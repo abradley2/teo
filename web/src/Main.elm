@@ -85,13 +85,13 @@ perform effect =
             Http.cancel tracker
 
         EffectStoreData k v ->
-            Ports.storeData ( k, v )
+            Ports.storeData { key = k, value = v }
 
         EffectRequestData k ->
             Ports.requestData k
 
         EffectStartRealm (RealmJwt jwt) ->
-            Ports.startRealm jwt
+            Ports.realmJwt jwt
 
         EffectCheckAuth clientId redirectUrl ->
             Http.request
@@ -247,7 +247,8 @@ withAppAction action ( model, effect ) =
                       }
                     , case notificationType of
                         AppAction.NotificationError (Just errorLog) ->
-                            (Just <| EffectLogError errorLog )
+                            Just <| EffectLogError errorLog
+
                         _ ->
                             Nothing
                     )

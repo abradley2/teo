@@ -33,7 +33,7 @@ eventDecoder =
 
 type Msg
     = NoOp
-    | ReceivedEventsResponse (Result Http.Error (List Event))
+    | ReceivedHostingEventsResponse (Result Http.Error (List Event))
     | ReceivedParticipatingEventsResponse (Result Http.Error (List Event))
     | EventCodeEntryChanged String
     | ReceivedData Value
@@ -41,7 +41,7 @@ type Msg
 
 type Effect
     = EffectNone
-    | EffectRequestEvents RequestTag UserId
+    | EffectRequestHostingEvents RequestTag UserId
     | EffectRequestParticipatingEvents RequestTag UserId
     | EffectBatch (List Effect)
 
@@ -49,8 +49,8 @@ type Effect
 perform : Effect -> Cmd Msg
 perform effect =
     case effect of
-        EffectRequestEvents (RequestTag tag) (UserId userId) ->
-            Ports.requestEvents
+        EffectRequestHostingEvents (RequestTag tag) (UserId userId) ->
+            Ports.requestHostingEvents
                 (Encode.object
                     [ ( "userId", Encode.string userId )
                     , ( "tag", Encode.string tag )
@@ -76,7 +76,7 @@ perform effect =
 
 
 type alias Model =
-    { events : HttpData (List Event)
+    { hostingEvents : HttpData (List Event)
     , participatingEvents : HttpData (List Event)
     , eventCodeEntry : String
     }
@@ -94,13 +94,13 @@ dataKey =
 
 init : User -> Shared -> ( Model, Maybe AppAction, Effect )
 init user shared =
-    ( { events = Loading Nothing
+    ( { hostingEvents = Loading Nothing
       , participatingEvents = Loading Nothing
       , eventCodeEntry = ""
       }
     , Just (AppAction.RequestData dataKey)
     , EffectBatch
-        [ EffectRequestEvents requestEventsTag user.userId
+        [ EffectRequestHostingEvents requestEventsTag user.userId
         , EffectRequestParticipatingEvents requestParticipatingEventsTag user.userId
         ]
     )
@@ -130,10 +130,10 @@ subscriptions _ =
         , HttpData.httpResponseSub
             { tag = requestEventsTag
             , ignoreMsg = NoOp
-            , toMsg = ReceivedEventsResponse
+            , toMsg = ReceivedHostingEventsResponse
             }
             (Decode.list eventDecoder)
-            |> Ports.requestEventsResponse
+            |> Ports.requestHostingEventsResponse
         , HttpData.httpResponseSub
             { tag = requestParticipatingEventsTag
             , ignoreMsg = NoOp
@@ -146,7 +146,7 @@ subscriptions _ =
 
 unload : Model -> Maybe AppAction
 unload model =
-    case model.events of
+    case model.hostingEvents of
         Loading (Just tracker) ->
             Just (AppAction.CancelRequest tracker)
 
@@ -160,8 +160,8 @@ update user shared msg model =
         NoOp ->
             ( model, Nothing, EffectNone )
 
-        ReceivedEventsResponse (Err err) ->
-            ( { model | events = Failure err }
+        ReceivedHostingEventsResponse (Err err) ->
+            ( { model | hostingEvents = Failure err }
             , Just
                 (AppAction.ShowNotification
                     (AppAction.NotificationError << Just <| HttpData.httpErrorToString err)
@@ -170,9 +170,9 @@ update user shared msg model =
             , EffectNone
             )
 
-        ReceivedEventsResponse (Ok res) ->
+        ReceivedHostingEventsResponse (Ok res) ->
             ( { model
-                | events = Success res
+                | hostingEvents = Success res
               }
             , Nothing
             , EffectNone

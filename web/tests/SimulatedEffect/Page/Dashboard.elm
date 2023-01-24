@@ -14,13 +14,13 @@ import User exposing (UserId(..))
 perform : Dashboard.Effect -> SimulatedEffect Dashboard.Msg
 perform effect =
     case effect of
-        Dashboard.EffectRequestEvents (RequestTag tag) (UserId userId) ->
+        Dashboard.EffectRequestHostingEvents (RequestTag tag) (UserId userId) ->
             SimulatedHttp.request
                 { method = "GET"
                 , timeout = Nothing
                 , expect =
                     SimulatedHttp.expectJson
-                        Dashboard.ReceivedEventsResponse
+                        Dashboard.ReceivedHostingEventsResponse
                         (Decode.list Dashboard.eventDecoder)
                 , body =
                     SimulatedHttp.jsonBody <|
